@@ -68,23 +68,15 @@ function applyTheme(themeName = "cozy_adventure") {
 }
 
 function loadSoundSetting() {
-  try {
-    const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    return {
-      muted: Boolean(savedSettings.muted),
-      theme: savedSettings.theme || "cozy_adventure"
-    };
-  } catch (error) {
-    return { muted: false, theme: "cozy_adventure" };
-  }
+  const savedSettings = safeJsonParse(safeLocalStorageGet(SETTINGS_KEY), {});
+  return {
+    muted: Boolean(savedSettings.muted),
+    theme: savedSettings.theme || "cozy_adventure"
+  };
 }
 
 function saveSoundSetting() {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(userSettings));
-  } catch (error) {
-    console.warn("Lingua Life RPG could not save settings.", error);
-  }
+  safeLocalStorageSet(SETTINGS_KEY, JSON.stringify(userSettings));
 }
 
 function isMuted() {
@@ -238,6 +230,51 @@ function openModal(content) {
 
 function closeModal() {
   document.getElementById("appModal").classList.add("hidden");
+}
+
+function safeLocalStorageGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn("Lingua Life RPG could not read localStorage.", error);
+    showUserFriendlyError("Progress cannot be saved in this browser session.");
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn("Lingua Life RPG could not write localStorage.", error);
+    showUserFriendlyError("Progress cannot be saved in this browser session.");
+    return false;
+  }
+}
+
+function safeLocalStorageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.warn("Lingua Life RPG could not remove localStorage data.", error);
+    showUserFriendlyError("Progress cannot be saved in this browser session.");
+    return false;
+  }
+}
+
+function safeJsonParse(value, fallback = null) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch (error) {
+    console.warn("Lingua Life RPG could not parse saved data.", error);
+    return fallback;
+  }
+}
+
+function showUserFriendlyError(message) {
+  showToast(message, "warning");
 }
 
 function normalizeVocabularyId(word, language) {
@@ -454,11 +491,12 @@ function getBadgeDefinitions() {
   ];
 }
 
-function normalizePlayer(player) {
+function normalizePlayerData(player) {
   if (!player || typeof player !== "object") {
     return null;
   }
 
+  const now = new Date().toISOString();
   const configs = typeof languageConfig === "object" && languageConfig
     ? languageConfig
     : fallbackLanguageConfig;
@@ -466,23 +504,41 @@ function normalizePlayer(player) {
   const learningLanguage = isValidLearningLanguage(player.learningLanguage)
     ? player.learningLanguage
     : "en";
+  const fallbackQuestId = getFirstQuestIdByLanguage(learningLanguage) || (learningLanguage === "zh" ? "zh_greeting_001" : "greeting_001");
+  const currentQuestId = isQuestLanguage(player.currentQuestId, learningLanguage)
+    ? player.currentQuestId
+    : fallbackQuestId;
+  const exp = Number.isFinite(Number(player.exp)) ? Number(player.exp) : 0;
 
   return {
     ...player,
+    id: player.id || `player_${Date.now()}`,
+    name: typeof player.name === "string" && player.name.trim() ? player.name.trim() : "Adventurer",
     nativeLanguage,
     learningLanguage,
-    level: Math.max(Number.isFinite(Number(player.level)) ? Number(player.level) : 1, getLevelFromExp(player.exp)),
-    exp: Number.isFinite(Number(player.exp)) ? Number(player.exp) : 0,
+    difficulty: player.difficulty || "beginner",
+    avatar: player.avatar || "scholar",
+    learningGoal: player.learningGoal || "daily_life",
+    dailyGoalMinutes: Number.isFinite(Number(player.dailyGoalMinutes)) ? Number(player.dailyGoalMinutes) : 5,
+    level: Math.max(Number.isFinite(Number(player.level)) ? Number(player.level) : 1, getLevelFromExp(exp)),
+    exp,
     coins: Number.isFinite(Number(player.coins)) ? Number(player.coins) : 0,
     currentMap: player.currentMap || "daily_life_town",
-    currentQuestId: player.currentQuestId || (learningLanguage === "zh" ? "zh_greeting_001" : "greeting_001"),
+    currentQuestId,
     completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
     learnedWords: normalizeLearnedWords(player.learnedWords, learningLanguage),
     badges: Array.isArray(player.badges) ? player.badges : [],
     rewardHistory: Array.isArray(player.rewardHistory) ? player.rewardHistory : [],
     claimedQuestRewards: Array.isArray(player.claimedQuestRewards) ? player.claimedQuestRewards : [],
-    streak: Number.isFinite(Number(player.streak)) ? Number(player.streak) : 0
+    streak: Number.isFinite(Number(player.streak)) ? Number(player.streak) : 0,
+    lastPlayedDate: player.lastPlayedDate || "",
+    createdAt: player.createdAt || now,
+    updatedAt: player.updatedAt || now
   };
+}
+
+function normalizePlayer(player) {
+  return normalizePlayerData(player);
 }
 
 function savePlayer(player) {
@@ -490,34 +546,35 @@ function savePlayer(player) {
     return null;
   }
 
-  const savedPlayer = normalizePlayer({
+  const savedPlayer = normalizePlayerData({
     ...player,
     updatedAt: new Date().toISOString()
   });
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPlayer));
+  if (safeLocalStorageSet(STORAGE_KEY, JSON.stringify(savedPlayer))) {
     currentPlayer = savedPlayer;
     return savedPlayer;
-  } catch (error) {
-    console.warn("Lingua Life RPG could not save player data.", error);
-    return null;
   }
+
+  currentPlayer = savedPlayer;
+  return savedPlayer;
 }
 
 function loadPlayer() {
-  try {
-    const rawPlayer = localStorage.getItem(STORAGE_KEY);
+  const rawPlayer = safeLocalStorageGet(STORAGE_KEY);
 
-    if (!rawPlayer) {
-      return null;
-    }
-
-    return normalizePlayer(JSON.parse(rawPlayer));
-  } catch (error) {
-    console.warn("Lingua Life RPG could not load player data.", error);
+  if (!rawPlayer) {
     return null;
   }
+
+  const parsedPlayer = safeJsonParse(rawPlayer, null);
+  const normalizedPlayer = normalizePlayerData(parsedPlayer);
+
+  if (normalizedPlayer) {
+    safeLocalStorageSet(STORAGE_KEY, JSON.stringify(normalizedPlayer));
+  }
+
+  return normalizedPlayer;
 }
 
 function getLevelFromExp(exp) {
@@ -958,11 +1015,7 @@ function resetGame() {
     return false;
   }
 
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.warn("Lingua Life RPG could not clear player data.", error);
-  }
+  safeLocalStorageRemove(STORAGE_KEY);
 
   currentPlayer = null;
   activeQuest = null;
@@ -1030,6 +1083,106 @@ function getQuestsByLanguage(language) {
   return questData
     .filter((quest) => quest.language === language && quest.mapId === "daily_life_town")
     .sort((first, second) => first.order - second.order);
+}
+
+function getQuestDataIssues() {
+  const issues = [];
+  const questIds = new Set((Array.isArray(questData) ? questData : []).map((quest) => quest.id));
+
+  if (!Array.isArray(questData)) {
+    return ["questData is not an array."];
+  }
+
+  questData.forEach((quest, index) => {
+    const label = quest && quest.id ? quest.id : `quest at index ${index}`;
+
+    if (!quest || typeof quest !== "object") {
+      issues.push(`${label}: quest is not an object.`);
+      return;
+    }
+
+    if (!quest.id) issues.push(`${label}: missing id.`);
+    if (!quest.title) issues.push(`${label}: missing title.`);
+    if (!quest.language) issues.push(`${label}: missing language.`);
+    if (!Number.isFinite(Number(quest.order))) issues.push(`${label}: missing numeric order.`);
+    if (!Number.isFinite(Number(quest.rewardExp))) issues.push(`${label}: rewardExp must be a number.`);
+    if (!Number.isFinite(Number(quest.rewardCoins))) issues.push(`${label}: rewardCoins must be a number.`);
+    if (quest.requiredQuestId && !questIds.has(quest.requiredQuestId)) {
+      issues.push(`${label}: requiredQuestId does not exist.`);
+    }
+
+    if (!Array.isArray(quest.vocabulary)) {
+      issues.push(`${label}: vocabulary should be an array.`);
+    }
+
+    if (!Array.isArray(quest.steps) || quest.steps.length === 0) {
+      issues.push(`${label}: steps are missing.`);
+      return;
+    }
+
+    quest.steps.forEach((step, stepIndex) => {
+      const stepLabel = `${label} step ${stepIndex + 1}`;
+
+      if (!step || !["dialogue", "choice"].includes(step.type)) {
+        issues.push(`${stepLabel}: invalid step type.`);
+        return;
+      }
+
+      if (step.type === "dialogue" && (!step.speaker || !step.text)) {
+        issues.push(`${stepLabel}: dialogue needs speaker and text.`);
+      }
+
+      if (step.type === "choice") {
+        if (!step.question) issues.push(`${stepLabel}: choice needs question.`);
+        if (!Array.isArray(step.options) || step.options.length === 0) {
+          issues.push(`${stepLabel}: choice needs options.`);
+        }
+        if (!step.correctAnswer) issues.push(`${stepLabel}: choice needs correctAnswer.`);
+        if (!step.hint) issues.push(`${stepLabel}: choice needs hint.`);
+        if (Array.isArray(step.options) && step.correctAnswer && !step.options.includes(step.correctAnswer)) {
+          issues.push(`${stepLabel}: correctAnswer must exist in options.`);
+        }
+      }
+    });
+  });
+
+  return issues;
+}
+
+function validateQuestData() {
+  return getQuestDataIssues().length === 0;
+}
+
+function logQuestDataIssuesForDeveloper() {
+  const issues = getQuestDataIssues();
+
+  if (issues.length) {
+    console.warn("Lingua Life RPG quest data issues:", issues);
+  }
+}
+
+function isQuestPlayable(quest) {
+  return Boolean(
+    quest &&
+    Array.isArray(quest.steps) &&
+    quest.steps.length > 0 &&
+    quest.steps.every((step) => {
+      if (step.type === "dialogue") {
+        return Boolean(step.speaker && step.text);
+      }
+
+      if (step.type === "choice") {
+        return Boolean(
+          step.question &&
+          Array.isArray(step.options) &&
+          step.options.includes(step.correctAnswer) &&
+          step.hint
+        );
+      }
+
+      return false;
+    })
+  );
 }
 
 function isQuestCompleted(questId, player) {
@@ -1167,7 +1320,7 @@ function startQuest(questId) {
     return;
   }
 
-  if (!Array.isArray(quest.steps) || quest.steps.length === 0) {
+  if (!isQuestPlayable(quest)) {
     currentPlayer = savePlayer({
       ...currentPlayer,
       currentQuestId: quest.id
@@ -1206,7 +1359,8 @@ function renderQuestScreen() {
 }
 
 function renderQuestStep() {
-  if (!activeQuest || !Array.isArray(activeQuest.steps)) {
+  if (!isQuestPlayable(activeQuest)) {
+    showUserFriendlyError("This quest is not ready yet.");
     returnToMap();
     return;
   }
@@ -2026,4 +2180,5 @@ document.addEventListener("click", (event) => {
 
 applyTheme(userSettings.theme);
 renderSoundToggle();
+logQuestDataIssuesForDeveloper();
 renderStartScreen();
