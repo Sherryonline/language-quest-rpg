@@ -4,7 +4,8 @@ const STORAGE_KEY = "linguaLifeSave";
 const screenIds = {
   start: "startScreen",
   character: "characterScreen",
-  main: "mainGameScreen"
+  main: "mainGameScreen",
+  quest: "questScreen"
 };
 
 const languageLabels = { vi: "Vietnamese", en: "English", zh: "Chinese" };
@@ -24,16 +25,41 @@ const learningGoalLabels = {
 };
 
 let currentPlayer = null;
+let activeQuest = null;
+let currentStepIndex = 0;
+let selectedAnswerState = null;
+
+function normalizePlayer(player) {
+  if (!player || typeof player !== "object") {
+    return null;
+  }
+
+  const learningLanguage = player.learningLanguage || "en";
+
+  return {
+    ...player,
+    level: Number.isFinite(Number(player.level)) ? Number(player.level) : 1,
+    exp: Number.isFinite(Number(player.exp)) ? Number(player.exp) : 0,
+    coins: Number.isFinite(Number(player.coins)) ? Number(player.coins) : 0,
+    currentMap: player.currentMap || "daily_life_town",
+    currentQuestId: player.currentQuestId || (learningLanguage === "zh" ? "zh_greeting_001" : "greeting_001"),
+    completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
+    learnedWords: Array.isArray(player.learnedWords) ? player.learnedWords : [],
+    badges: Array.isArray(player.badges) ? player.badges : [],
+    claimedQuestRewards: Array.isArray(player.claimedQuestRewards) ? player.claimedQuestRewards : [],
+    streak: Number.isFinite(Number(player.streak)) ? Number(player.streak) : 0
+  };
+}
 
 function savePlayer(player) {
   if (!player || typeof player !== "object") {
     return null;
   }
 
-  const savedPlayer = {
+  const savedPlayer = normalizePlayer({
     ...player,
     updatedAt: new Date().toISOString()
-  };
+  });
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPlayer));
@@ -53,18 +79,7 @@ function loadPlayer() {
       return null;
     }
 
-    const player = JSON.parse(rawPlayer);
-
-    if (!player || typeof player !== "object") {
-      return null;
-    }
-
-    return {
-      ...player,
-      completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
-      learnedWords: Array.isArray(player.learnedWords) ? player.learnedWords : [],
-      badges: Array.isArray(player.badges) ? player.badges : []
-    };
+    return normalizePlayer(JSON.parse(rawPlayer));
   } catch (error) {
     console.warn("Lingua Life RPG could not load player data.", error);
     return null;
@@ -85,6 +100,9 @@ function resetGame() {
   }
 
   currentPlayer = null;
+  activeQuest = null;
+  currentStepIndex = 0;
+  selectedAnswerState = null;
   document.getElementById("characterForm").reset();
   renderStartScreen();
   return true;
@@ -111,6 +129,7 @@ function createPlayer(formData) {
     completedQuests: [],
     learnedWords: [],
     badges: [],
+    claimedQuestRewards: [],
     streak: 0,
     lastPlayedDate: "",
     createdAt: now,
@@ -135,6 +154,10 @@ function renderCreateCharacterScreen() {
   clearValidationMessages();
   navigateTo("character");
   document.getElementById("playerName").focus();
+}
+
+function getQuestById(questId) {
+  return questData.find((quest) => quest.id === questId) || null;
 }
 
 function getQuestsByLanguage(language) {
@@ -255,10 +278,24 @@ function renderQuestCard(quest) {
 }
 
 function startQuest(questId) {
-  const quest = getQuestsByLanguage(currentPlayer.learningLanguage)
-    .find((item) => item.id === questId);
+  const quest = getQuestById(questId);
 
-  if (!quest || getQuestStatus(quest, currentPlayer) === "Locked") {
+  if (
+    !quest ||
+    !currentPlayer ||
+    quest.language !== currentPlayer.learningLanguage ||
+    getQuestStatus(quest, currentPlayer) === "Locked"
+  ) {
+    return;
+  }
+
+  if (!Array.isArray(quest.steps) || quest.steps.length === 0) {
+    currentPlayer = savePlayer({
+      ...currentPlayer,
+      currentQuestId: quest.id
+    }) || currentPlayer;
+    setText("mainQuest", currentPlayer.currentQuestId);
+    setText("questMessage", `${quest.title} content will be added in Sprint 4.`);
     return;
   }
 
@@ -266,8 +303,239 @@ function startQuest(questId) {
     ...currentPlayer,
     currentQuestId: quest.id
   }) || currentPlayer;
-  setText("mainQuest", currentPlayer.currentQuestId);
-  setText("questMessage", `Quest engine will be available in Sprint 3. Selected quest: ${quest.title}`);
+  activeQuest = quest;
+  currentStepIndex = 0;
+  selectedAnswerState = null;
+  renderQuestScreen();
+}
+
+function renderQuestScreen() {
+  if (!activeQuest || !currentPlayer) {
+    returnToMap();
+    return;
+  }
+
+  setText("questScreenTitle", activeQuest.title);
+  setText("questScreenDescription", activeQuest.description);
+  setText("questPlayerName", currentPlayer.name);
+  setText("questPlayerExp", currentPlayer.exp);
+  setText("questPlayerCoins", currentPlayer.coins);
+  setText("questRewardPreview", `+${activeQuest.rewardExp} EXP / +${activeQuest.rewardCoins} Coins`);
+  document.getElementById("questStepPanel").classList.remove("hidden");
+  document.getElementById("questCompletePanel").classList.add("hidden");
+  renderQuestStep();
+  navigateTo("quest");
+}
+
+function renderQuestStep() {
+  if (!activeQuest || !Array.isArray(activeQuest.steps)) {
+    returnToMap();
+    return;
+  }
+
+  const step = activeQuest.steps[currentStepIndex];
+
+  if (!step) {
+    completeQuest();
+    return;
+  }
+
+  const stepContent = document.getElementById("questStepContent");
+  const choiceOptions = document.getElementById("questChoiceOptions");
+  const stepActions = document.getElementById("questStepActions");
+
+  setText("questStepProgress", `Step ${currentStepIndex + 1} of ${activeQuest.steps.length}`);
+  setText("questFeedback", "");
+  setText("questHint", "");
+  document.getElementById("questFeedback").className = "quest-feedback";
+  choiceOptions.replaceChildren();
+  stepActions.replaceChildren();
+  stepContent.replaceChildren();
+
+  if (step.type === "dialogue") {
+    setText("questSpeakerLabel", `${step.speaker || "Guide"}:`);
+    const dialogue = document.createElement("p");
+    const nextButton = document.createElement("button");
+
+    dialogue.className = "quest-dialogue-text";
+    dialogue.textContent = step.text || "";
+    nextButton.className = "button button-primary";
+    nextButton.type = "button";
+    nextButton.textContent = currentStepIndex === activeQuest.steps.length - 1 ? "Finish" : "Next";
+    nextButton.addEventListener("click", handleDialogueNext);
+
+    stepContent.appendChild(dialogue);
+    stepActions.appendChild(nextButton);
+    return;
+  }
+
+  if (step.type === "choice") {
+    setText("questSpeakerLabel", "Question:");
+    const question = document.createElement("p");
+
+    question.className = "quest-question-text";
+    question.textContent = step.question || "";
+    stepContent.appendChild(question);
+
+    (step.options || []).forEach((option) => {
+      const optionButton = document.createElement("button");
+      optionButton.className = "button button-quiet quest-choice-button";
+      optionButton.type = "button";
+      optionButton.textContent = option;
+      optionButton.addEventListener("click", () => handleChoiceAnswer(option));
+      choiceOptions.appendChild(optionButton);
+    });
+    return;
+  }
+
+  showQuestHint("This quest step type is not supported yet.");
+}
+
+function handleDialogueNext() {
+  currentStepIndex += 1;
+  selectedAnswerState = null;
+  renderQuestStep();
+}
+
+function handleChoiceAnswer(selectedAnswer) {
+  if (!activeQuest) {
+    return;
+  }
+
+  const step = activeQuest.steps[currentStepIndex];
+
+  if (!step || step.type !== "choice") {
+    return;
+  }
+
+  selectedAnswerState = selectedAnswer;
+
+  if (selectedAnswer === step.correctAnswer) {
+    const continueButton = document.createElement("button");
+
+    setText("questFeedback", "Correct!");
+    document.getElementById("questFeedback").className = "quest-feedback quest-feedback-correct";
+    setText("questHint", "");
+    continueButton.className = "button button-primary";
+    continueButton.type = "button";
+    continueButton.textContent = currentStepIndex === activeQuest.steps.length - 1 ? "Finish Quest" : "Continue";
+    continueButton.addEventListener("click", handleDialogueNext);
+    document.getElementById("questStepActions").replaceChildren(continueButton);
+    document.querySelectorAll(".quest-choice-button").forEach((button) => {
+      button.disabled = true;
+      button.classList.toggle("choice-selected", button.textContent === selectedAnswer);
+    });
+    return;
+  }
+
+  document.getElementById("questFeedback").className = "quest-feedback quest-feedback-wrong";
+  showQuestHint(step.hint || "Try a different answer.");
+}
+
+function showQuestHint(message) {
+  setText("questFeedback", "Not quite. Try again.");
+  setText("questHint", message);
+}
+
+function completeQuest() {
+  if (!activeQuest || !currentPlayer) {
+    returnToMap();
+    return;
+  }
+
+  const rewardAlreadyClaimed = hasRewardAlreadyClaimed(activeQuest.id);
+  const completionResult = addCompletedQuest(activeQuest.id);
+  currentPlayer = completionResult.player;
+
+  if (!rewardAlreadyClaimed) {
+    currentPlayer = applyQuestReward(activeQuest);
+  } else {
+    currentPlayer = savePlayer(currentPlayer) || currentPlayer;
+  }
+
+  const vocabulary = Array.isArray(activeQuest.vocabulary) ? activeQuest.vocabulary : [];
+  const vocabularyList = document.getElementById("questVocabularyList");
+
+  setText("questCompleteTitle", activeQuest.title);
+  setText("questCompleteMessage", rewardAlreadyClaimed
+    ? "Quest replay completed. Rewards were already claimed."
+    : "Quest completed! Rewards claimed.");
+  setText("questCompleteExp", `+${activeQuest.rewardExp} EXP`);
+  setText("questCompleteCoins", `+${activeQuest.rewardCoins} Coins`);
+  setText("questPlayerExp", currentPlayer.exp);
+  setText("questPlayerCoins", currentPlayer.coins);
+  vocabularyList.replaceChildren();
+
+  vocabulary.forEach((item) => {
+    const listItem = document.createElement("li");
+    const pinyin = item.pinyin ? ` (${item.pinyin})` : "";
+    listItem.textContent = `${item.word}${pinyin} = ${item.meaning}`;
+    vocabularyList.appendChild(listItem);
+  });
+
+  document.getElementById("questStepPanel").classList.add("hidden");
+  document.getElementById("questCompletePanel").classList.remove("hidden");
+  setText("questStepProgress", `Step ${activeQuest.steps.length} of ${activeQuest.steps.length}`);
+}
+
+function addCompletedQuest(questId) {
+  const completedQuests = Array.isArray(currentPlayer.completedQuests)
+    ? [...currentPlayer.completedQuests]
+    : [];
+  const wasAlreadyCompleted = completedQuests.includes(questId);
+
+  if (!wasAlreadyCompleted) {
+    completedQuests.push(questId);
+  }
+
+  const savedPlayer = savePlayer({ ...currentPlayer, completedQuests }) || {
+    ...currentPlayer,
+    completedQuests
+  };
+
+  return { player: savedPlayer, wasAlreadyCompleted };
+}
+
+function applyQuestReward(quest) {
+  const claimedQuestRewards = Array.isArray(currentPlayer.claimedQuestRewards)
+    ? [...currentPlayer.claimedQuestRewards]
+    : [];
+  const learnedWords = Array.isArray(currentPlayer.learnedWords)
+    ? [...currentPlayer.learnedWords]
+    : [];
+
+  if (!claimedQuestRewards.includes(quest.id)) {
+    claimedQuestRewards.push(quest.id);
+  }
+
+  (quest.vocabulary || []).forEach((item) => {
+    if (item.word && !learnedWords.includes(item.word)) {
+      learnedWords.push(item.word);
+    }
+  });
+
+  return savePlayer({
+    ...currentPlayer,
+    exp: Number(currentPlayer.exp || 0) + Number(quest.rewardExp || 0),
+    coins: Number(currentPlayer.coins || 0) + Number(quest.rewardCoins || 0),
+    claimedQuestRewards,
+    learnedWords
+  }) || currentPlayer;
+}
+
+function hasRewardAlreadyClaimed(questId) {
+  return Boolean(
+    currentPlayer &&
+    Array.isArray(currentPlayer.claimedQuestRewards) &&
+    currentPlayer.claimedQuestRewards.includes(questId)
+  );
+}
+
+function returnToMap() {
+  activeQuest = null;
+  currentStepIndex = 0;
+  selectedAnswerState = null;
+  renderMainGameScreen();
 }
 
 function markCurrentQuestCompletedForTest() {
@@ -427,6 +695,8 @@ document.getElementById("formBackButton").addEventListener("click", renderStartS
 document.getElementById("characterForm").addEventListener("submit", handleCharacterSubmit);
 document.getElementById("mainBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
+document.getElementById("returnToMapButton").addEventListener("click", returnToMap);
+document.getElementById("returnToMapCompleteButton").addEventListener("click", returnToMap);
 document.getElementById("markQuestCompleteButton").addEventListener("click", markCurrentQuestCompletedForTest);
 document.getElementById("clearCompletedQuestsButton").addEventListener("click", clearCompletedQuestsForTest);
 

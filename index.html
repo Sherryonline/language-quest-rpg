@@ -200,6 +200,57 @@
         <button id="mainResetButton" class="button button-danger" type="button">Reset Game</button>
       </div>
     </section>
+
+    <section id="questScreen" class="screen quest-screen hidden" aria-labelledby="questScreenTitle">
+      <header class="quest-play-header">
+        <div>
+          <p class="eyebrow">Active Quest</p>
+          <h2 id="questScreenTitle">Quest</h2>
+          <p id="questScreenDescription">Complete each step to finish the quest.</p>
+        </div>
+        <div class="quest-player-status">
+          <span id="questPlayerName">Player</span>
+          <strong><span id="questPlayerExp">0</span> EXP</strong>
+          <strong><span id="questPlayerCoins">0</span> Coins</strong>
+        </div>
+      </header>
+
+      <div class="quest-progress-row">
+        <span id="questStepProgress">Step 1 of 1</span>
+        <span id="questRewardPreview">+0 EXP / +0 Coins</span>
+      </div>
+
+      <article id="questStepPanel" class="quest-step-panel">
+        <p id="questSpeakerLabel" class="quest-speaker">Guide</p>
+        <div id="questStepContent" class="quest-step-content"></div>
+        <div id="questChoiceOptions" class="quest-choice-options"></div>
+        <p id="questFeedback" class="quest-feedback" aria-live="polite"></p>
+        <p id="questHint" class="quest-hint" aria-live="polite"></p>
+        <div id="questStepActions" class="quest-step-actions"></div>
+      </article>
+
+      <article id="questCompletePanel" class="quest-complete-panel hidden">
+        <p class="eyebrow">Quest Completed</p>
+        <h2 id="questCompleteTitle">Quest Completed!</h2>
+        <p id="questCompleteMessage">Rewards claimed.</p>
+
+        <div class="quest-complete-rewards">
+          <span id="questCompleteExp">+0 EXP</span>
+          <span id="questCompleteCoins">+0 Coins</span>
+        </div>
+
+        <div>
+          <h3>Vocabulary Learned</h3>
+          <ul id="questVocabularyList" class="quest-vocabulary-list"></ul>
+        </div>
+
+        <button id="returnToMapCompleteButton" class="button button-primary" type="button">Return to Map</button>
+      </article>
+
+      <div class="quest-screen-actions">
+        <button id="returnToMapButton" class="button button-secondary" type="button">Back to Map</button>
+      </div>
+    </section>
   </main>
 
   <script src="data/quests.js"></script>
