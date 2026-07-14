@@ -54,7 +54,17 @@ function loadPlayer() {
     }
 
     const player = JSON.parse(rawPlayer);
-    return player && typeof player === "object" ? player : null;
+
+    if (!player || typeof player !== "object") {
+      return null;
+    }
+
+    return {
+      ...player,
+      completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
+      learnedWords: Array.isArray(player.learnedWords) ? player.learnedWords : [],
+      badges: Array.isArray(player.badges) ? player.badges : []
+    };
   } catch (error) {
     console.warn("Lingua Life RPG could not load player data.", error);
     return null;
@@ -127,7 +137,39 @@ function renderCreateCharacterScreen() {
   document.getElementById("playerName").focus();
 }
 
-function renderMainGameScreen(player = currentPlayer) {
+function getQuestsByLanguage(language) {
+  return questData
+    .filter((quest) => quest.language === language && quest.mapId === "daily_life_town")
+    .sort((first, second) => first.order - second.order);
+}
+
+function isQuestCompleted(questId, player) {
+  return Boolean(
+    player &&
+    Array.isArray(player.completedQuests) &&
+    player.completedQuests.includes(questId)
+  );
+}
+
+function isQuestAvailable(quest, player) {
+  return Boolean(
+    quest &&
+    player &&
+    (quest.requiredQuestId === null || isQuestCompleted(quest.requiredQuestId, player))
+  );
+}
+
+function getQuestStatus(quest, player) {
+  if (isQuestCompleted(quest.id, player)) {
+    return "Completed";
+  }
+
+  return isQuestAvailable(quest, player) ? "Available" : "Locked";
+}
+
+function renderMainGameScreen() {
+  const player = currentPlayer || loadPlayer();
+
   if (!player) {
     renderStartScreen();
     return;
@@ -150,7 +192,126 @@ function renderMainGameScreen(player = currentPlayer) {
   setText("mainMap", formatIdentifier(player.currentMap));
   setText("mainQuest", player.currentQuestId);
   setText("mainStreak", `${player.streak} ${player.streak === 1 ? "day" : "days"}`);
+  renderDailyLifeTownMap();
   navigateTo("main");
+}
+
+function renderDailyLifeTownMap() {
+  const questCards = document.getElementById("questCards");
+  const quests = getQuestsByLanguage(currentPlayer.learningLanguage);
+  const completedCount = quests.filter((quest) => isQuestCompleted(quest.id, currentPlayer)).length;
+
+  questCards.replaceChildren();
+  quests.forEach((quest) => {
+    questCards.appendChild(renderQuestCard(quest));
+  });
+
+  setText("questProgress", `${completedCount} of ${quests.length} completed`);
+  setText("questMessage", "Choose an available quest to prepare your next adventure.");
+}
+
+function renderQuestCard(quest) {
+  const status = getQuestStatus(quest, currentPlayer);
+  const card = document.createElement("article");
+  const cardHeader = document.createElement("div");
+  const order = document.createElement("span");
+  const statusBadge = document.createElement("span");
+  const title = document.createElement("h4");
+  const description = document.createElement("p");
+  const rewards = document.createElement("div");
+  const expReward = document.createElement("span");
+  const coinReward = document.createElement("span");
+  const actionButton = document.createElement("button");
+
+  card.className = `quest-card quest-${status.toLowerCase()}`;
+  cardHeader.className = "quest-card-header";
+  order.className = "quest-order";
+  statusBadge.className = "quest-status";
+  rewards.className = "quest-rewards";
+  actionButton.className = status === "Available"
+    ? "button button-primary"
+    : "button button-secondary";
+
+  order.textContent = `Quest ${quest.order}`;
+  statusBadge.textContent = status;
+  title.textContent = quest.title;
+  description.textContent = quest.description;
+  expReward.textContent = `+${quest.rewardExp} EXP`;
+  coinReward.textContent = `+${quest.rewardCoins} Coins`;
+  actionButton.type = "button";
+
+  if (status === "Locked") {
+    actionButton.textContent = "Locked";
+    actionButton.disabled = true;
+  } else {
+    actionButton.textContent = status === "Completed" ? "Replay" : "Start Quest";
+    actionButton.addEventListener("click", () => startQuest(quest.id));
+  }
+
+  cardHeader.append(order, statusBadge);
+  rewards.append(expReward, coinReward);
+  card.append(cardHeader, title, description, rewards, actionButton);
+  return card;
+}
+
+function startQuest(questId) {
+  const quest = getQuestsByLanguage(currentPlayer.learningLanguage)
+    .find((item) => item.id === questId);
+
+  if (!quest || getQuestStatus(quest, currentPlayer) === "Locked") {
+    return;
+  }
+
+  currentPlayer = savePlayer({
+    ...currentPlayer,
+    currentQuestId: quest.id
+  }) || currentPlayer;
+  setText("mainQuest", currentPlayer.currentQuestId);
+  setText("questMessage", `Quest engine will be available in Sprint 3. Selected quest: ${quest.title}`);
+}
+
+function markCurrentQuestCompletedForTest() {
+  if (!currentPlayer) {
+    return;
+  }
+
+  const quest = getQuestsByLanguage(currentPlayer.learningLanguage)
+    .find((item) => item.id === currentPlayer.currentQuestId);
+
+  if (!quest) {
+    setText("questMessage", "Select an available quest before marking it completed.");
+    return;
+  }
+
+  const completedQuests = Array.isArray(currentPlayer.completedQuests)
+    ? [...currentPlayer.completedQuests]
+    : [];
+
+  if (!completedQuests.includes(quest.id)) {
+    completedQuests.push(quest.id);
+  }
+
+  currentPlayer = savePlayer({ ...currentPlayer, completedQuests }) || currentPlayer;
+  renderDailyLifeTownMap();
+  setText("questMessage", `${quest.title} marked as completed. The next quest is now available.`);
+}
+
+function clearCompletedQuestsForTest() {
+  if (!currentPlayer) {
+    return;
+  }
+
+  const firstQuestId = currentPlayer.learningLanguage === "zh"
+    ? "zh_greeting_001"
+    : "greeting_001";
+  currentPlayer = savePlayer({
+    ...currentPlayer,
+    completedQuests: [],
+    currentQuestId: firstQuestId
+  }) || currentPlayer;
+  setText("mainQuest", currentPlayer.currentQuestId);
+  renderDailyLifeTownMap();
+  setText("questMessage", "Completed quests cleared. The first quest is available again.");
 }
 
 function validateCharacterForm() {
@@ -242,7 +403,8 @@ function handleCharacterSubmit(event) {
   const savedPlayer = savePlayer(player);
 
   if (savedPlayer) {
-    renderMainGameScreen(savedPlayer);
+    currentPlayer = savedPlayer;
+    renderMainGameScreen();
   }
 }
 
@@ -250,7 +412,8 @@ function continueGame() {
   const savedPlayer = loadPlayer();
 
   if (savedPlayer) {
-    renderMainGameScreen(savedPlayer);
+    currentPlayer = savedPlayer;
+    renderMainGameScreen();
   } else {
     renderStartScreen();
   }
@@ -264,5 +427,7 @@ document.getElementById("formBackButton").addEventListener("click", renderStartS
 document.getElementById("characterForm").addEventListener("submit", handleCharacterSubmit);
 document.getElementById("mainBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
+document.getElementById("markQuestCompleteButton").addEventListener("click", markCurrentQuestCompletedForTest);
+document.getElementById("clearCompletedQuestsButton").addEventListener("click", clearCompletedQuestsForTest);
 
 renderStartScreen();

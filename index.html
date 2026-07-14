@@ -158,6 +158,43 @@
         <article class="info-card"><span>Streak</span><strong id="mainStreak">0 days</strong></article>
       </div>
 
+      <section class="town-map" aria-labelledby="townMapTitle">
+        <header class="town-map-header">
+          <div>
+            <p class="eyebrow">Current Map</p>
+            <h2 id="townMapTitle">Daily Life Town</h2>
+            <p>Practice real-life conversations in simple daily situations.</p>
+          </div>
+          <span class="map-badge">Town Map</span>
+        </header>
+
+        <div class="town-landmarks" aria-label="Daily Life Town locations">
+          <div><span aria-hidden="true">🏠</span><strong>Town Square</strong></div>
+          <div><span aria-hidden="true">☕</span><strong>Coffee Shop</strong></div>
+          <div><span aria-hidden="true">🛒</span><strong>Market Street</strong></div>
+          <div><span aria-hidden="true">🧭</span><strong>Travel Corner</strong></div>
+        </div>
+
+        <div class="quest-section-header">
+          <div>
+            <p class="eyebrow">Quest Board</p>
+            <h3>Town Quests</h3>
+          </div>
+          <p id="questProgress">0 of 5 completed</p>
+        </div>
+        <p id="questMessage" class="quest-message" aria-live="polite">Choose an available quest to prepare your next adventure.</p>
+        <div id="questCards" class="quest-grid"></div>
+
+        <details class="developer-tools">
+          <summary>Developer Test Tools</summary>
+          <p>Temporary controls for testing Sprint 2 quest unlock rules.</p>
+          <div class="developer-actions">
+            <button id="markQuestCompleteButton" class="button button-secondary" type="button">Mark Current Quest as Completed</button>
+            <button id="clearCompletedQuestsButton" class="button button-quiet" type="button">Clear Completed Quests</button>
+          </div>
+        </details>
+      </section>
+
       <div class="main-actions">
         <button id="mainBackButton" class="button button-secondary" type="button">Back to Start</button>
         <button id="mainResetButton" class="button button-danger" type="button">Reset Game</button>
@@ -165,6 +202,7 @@
     </section>
   </main>
 
+  <script src="data/quests.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

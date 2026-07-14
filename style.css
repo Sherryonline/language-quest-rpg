@@ -387,6 +387,209 @@ h2 {
   font-size: 1.05rem;
 }
 
+.town-map {
+  margin: 34px 0;
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid rgba(100, 210, 160, 0.25);
+  border-radius: 20px;
+  background: rgba(4, 24, 20, 0.42);
+}
+
+.town-map-header,
+.quest-section-header,
+.quest-card-header,
+.quest-rewards,
+.developer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.town-map-header h2 {
+  margin-bottom: 8px;
+}
+
+.town-map-header p:last-child,
+.quest-section-header p,
+.developer-tools p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.map-badge,
+.quest-status,
+.quest-order {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.map-badge {
+  color: #13251e;
+  background: var(--gold);
+}
+
+.town-landmarks {
+  margin: 24px 0 34px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.town-landmarks div {
+  min-height: 104px;
+  padding: 14px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  border: 1px dashed rgba(241, 198, 90, 0.35);
+  border-radius: 15px;
+  text-align: center;
+  background: rgba(241, 198, 90, 0.055);
+}
+
+.town-landmarks span {
+  font-size: 2rem;
+}
+
+.town-landmarks strong {
+  font-size: 0.88rem;
+}
+
+.quest-section-header {
+  align-items: flex-end;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.quest-section-header h3 {
+  margin: 0;
+  color: var(--gold);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.7rem;
+}
+
+.quest-message {
+  min-height: 1.5em;
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  color: #d3e9de;
+  background: rgba(100, 210, 160, 0.08);
+}
+
+.quest-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.quest-card {
+  min-width: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+
+.quest-card h4 {
+  margin: 16px 0 8px;
+  color: var(--ink);
+  font-size: 1.18rem;
+}
+
+.quest-card > p {
+  min-height: 3em;
+  margin-bottom: 18px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.quest-card .button {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.quest-order {
+  padding-left: 0;
+  color: var(--muted);
+}
+
+.quest-rewards {
+  justify-content: flex-start;
+  margin-top: auto;
+}
+
+.quest-rewards span {
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(241, 198, 90, 0.09);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.quest-available {
+  border-color: rgba(100, 210, 160, 0.55);
+}
+
+.quest-available .quest-status {
+  color: #11372a;
+  background: var(--green);
+}
+
+.quest-locked {
+  filter: grayscale(0.75);
+  opacity: 0.58;
+}
+
+.quest-locked .quest-status {
+  color: #d8dfdc;
+  background: #4b5b56;
+}
+
+.quest-completed {
+  border-color: rgba(241, 198, 90, 0.58);
+  background: rgba(99, 80, 32, 0.35);
+}
+
+.quest-completed .quest-status {
+  color: #2c2110;
+  background: var(--gold);
+}
+
+.developer-tools {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.developer-tools summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.developer-tools p {
+  margin: 12px 0;
+  font-size: 0.88rem;
+}
+
+.developer-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .main-actions {
   justify-content: flex-start;
 }
@@ -398,8 +601,13 @@ h2 {
   }
 
   .form-grid,
-  .profile-grid {
+  .profile-grid,
+  .quest-grid {
     grid-template-columns: 1fr;
+  }
+
+  .town-landmarks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .form-field-wide {
@@ -429,7 +637,10 @@ h2 {
 @media (max-width: 480px) {
   .screen-header,
   .form-actions,
-  .main-actions {
+  .main-actions,
+  .town-map-header,
+  .quest-section-header,
+  .developer-actions {
     align-items: stretch;
     flex-direction: column;
   }
