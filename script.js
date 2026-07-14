@@ -17,7 +17,15 @@ const fallbackLanguageConfig = {
   zh: { code: "zh", label: "Chinese", nativeLabel: "中文", flag: "🇨🇳", direction: "ltr", showPinyin: true, learningAvailable: true }
 };
 const languageLabels = { vi: "Vietnamese", en: "English", zh: "Chinese" };
-const difficultyLabels = { beginner: "Beginner", elementary: "Elementary" };
+const difficultyLabels = {
+  a0: "A0 Starter",
+  a1: "A1 Beginner",
+  a2: "A2 Elementary",
+  b1: "B1 Intermediate",
+  beginner: "A1 Beginner",
+  elementary: "A2 Elementary"
+};
+const missionStepTypes = ["choice", "multiple_choice", "fill_blank", "order_sentence", "typing", "choose_reply"];
 const avatarLabels = {
   scholar: { label: "Scholar", icon: "📚" },
   traveler: { label: "Traveler", icon: "🧭" },
@@ -419,7 +427,7 @@ function getBadgeDefinitions() {
     {
       id: "first_quest",
       title: "First Step",
-      description: "Complete your first quest.",
+      description: "Complete your first mission.",
       icon: "🌟",
       conditionType: "completedQuestCount",
       conditionValue: 1
@@ -459,7 +467,7 @@ function getBadgeDefinitions() {
     {
       id: "english_beginner",
       title: "English Beginner",
-      description: "Complete all 5 English MVP quests.",
+      description: "Complete all 5 English city missions.",
       icon: "🇬🇧",
       conditionType: "completedQuestSet",
       conditionValue: ["greeting_001", "coffee_001", "food_001", "direction_001", "introduce_001"]
@@ -467,7 +475,7 @@ function getBadgeDefinitions() {
     {
       id: "chinese_beginner",
       title: "Chinese Beginner",
-      description: "Complete all 5 Chinese MVP quests.",
+      description: "Complete all 5 Chinese city missions.",
       icon: "🇨🇳",
       conditionType: "completedQuestSet",
       conditionValue: ["zh_greeting_001", "zh_coffee_001", "zh_food_001", "zh_direction_001", "zh_introduce_001"]
@@ -489,6 +497,22 @@ function getBadgeDefinitions() {
       conditionValue: 5
     }
   ];
+}
+
+function normalizeDifficulty(difficulty) {
+  if (difficulty === "beginner") {
+    return "a1";
+  }
+
+  if (difficulty === "elementary") {
+    return "a2";
+  }
+
+  return difficultyLabels[difficulty] ? difficulty : "a0";
+}
+
+function normalizeMapId(mapId) {
+  return mapId === "daily_life_town" || !mapId ? "lingua_city" : mapId;
 }
 
 function normalizePlayerData(player) {
@@ -516,14 +540,14 @@ function normalizePlayerData(player) {
     name: typeof player.name === "string" && player.name.trim() ? player.name.trim() : "Adventurer",
     nativeLanguage,
     learningLanguage,
-    difficulty: player.difficulty || "beginner",
+    difficulty: normalizeDifficulty(player.difficulty),
     avatar: player.avatar || "scholar",
     learningGoal: player.learningGoal || "daily_life",
     dailyGoalMinutes: Number.isFinite(Number(player.dailyGoalMinutes)) ? Number(player.dailyGoalMinutes) : 5,
     level: Math.max(Number.isFinite(Number(player.level)) ? Number(player.level) : 1, getLevelFromExp(exp)),
     exp,
     coins: Number.isFinite(Number(player.coins)) ? Number(player.coins) : 0,
-    currentMap: player.currentMap || "daily_life_town",
+    currentMap: normalizeMapId(player.currentMap),
     currentQuestId,
     completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
     learnedWords: normalizeLearnedWords(player.learnedWords, learningLanguage),
@@ -733,7 +757,7 @@ function showRewardPopup(rewardData) {
   level.replaceChildren();
   badges.replaceChildren();
 
-  setText("rewardPopupTitle", rewardData.isReplay ? "Quest replay completed." : "Quest Completed!");
+  setText("rewardPopupTitle", rewardData.isReplay ? "Mission replay completed." : "Mission Completed!");
   setText("rewardPopupQuestTitle", rewardData.quest.title);
   setText("rewardPopupVocabulary", rewardData.isReplay
     ? "Rewards were already claimed."
@@ -1001,7 +1025,7 @@ function renderLanguageProgressSummary() {
 
     card.className = "language-progress-card";
     title.textContent = formatLanguageDisplay(languageCode);
-    quests.textContent = `Completed Quests: ${progress.completedQuests} / ${progress.totalQuests}`;
+    quests.textContent = `Completed Missions: ${progress.completedQuests} / ${progress.totalQuests}`;
     words.textContent = `Learned Words: ${progress.learnedWords}`;
     card.append(title, quests, words);
     grid.appendChild(card);
@@ -1042,7 +1066,7 @@ function createPlayer(formData) {
     level: 1,
     exp: 0,
     coins: 0,
-    currentMap: "daily_life_town",
+    currentMap: "lingua_city",
     currentQuestId: learningLanguage === "zh" ? "zh_greeting_001" : "greeting_001",
     completedQuests: [],
     learnedWords: [],
@@ -1079,10 +1103,49 @@ function getQuestById(questId) {
   return questData.find((quest) => quest.id === questId) || null;
 }
 
+function getCityLocations() {
+  const locations = typeof cityLocations !== "undefined" && Array.isArray(cityLocations)
+    ? cityLocations
+    : [];
+
+  return locations.slice().sort((first, second) => first.order - second.order);
+}
+
+function getLocationById(locationId) {
+  return getCityLocations().find((location) => location.id === locationId) || null;
+}
+
 function getQuestsByLanguage(language) {
-  return questData
-    .filter((quest) => quest.language === language && quest.mapId === "daily_life_town")
+  const sourceMissions = typeof missions !== "undefined" && Array.isArray(missions)
+    ? missions
+    : questData;
+
+  return sourceMissions
+    .filter((quest) => quest.language === language && normalizeMapId(quest.mapId) === "lingua_city")
     .sort((first, second) => first.order - second.order);
+}
+
+function getQuestsByLocation(language, locationId) {
+  return getQuestsByLanguage(language)
+    .filter((quest) => quest.locationId === locationId)
+    .sort((first, second) => {
+      const difficultyCompare = getDifficultyOrder(first.difficultyLevel) - getDifficultyOrder(second.difficultyLevel);
+      return difficultyCompare || first.order - second.order;
+    });
+}
+
+function getDifficultyOrder(difficultyLevel) {
+  return ["a0", "a1", "a2", "b1"].indexOf(difficultyLevel) === -1
+    ? 99
+    : ["a0", "a1", "a2", "b1"].indexOf(difficultyLevel);
+}
+
+function getDifficultyLabel(difficultyLevel) {
+  return difficultyLabels[difficultyLevel] || formatIdentifier(difficultyLevel || "a0");
+}
+
+function isAnswerStep(step) {
+  return Boolean(step && missionStepTypes.includes(step.type));
 }
 
 function getQuestDataIssues() {
@@ -1123,7 +1186,7 @@ function getQuestDataIssues() {
     quest.steps.forEach((step, stepIndex) => {
       const stepLabel = `${label} step ${stepIndex + 1}`;
 
-      if (!step || !["dialogue", "choice"].includes(step.type)) {
+      if (!step || (step.type !== "dialogue" && !missionStepTypes.includes(step.type))) {
         issues.push(`${stepLabel}: invalid step type.`);
         return;
       }
@@ -1132,14 +1195,14 @@ function getQuestDataIssues() {
         issues.push(`${stepLabel}: dialogue needs speaker and text.`);
       }
 
-      if (step.type === "choice") {
-        if (!step.question) issues.push(`${stepLabel}: choice needs question.`);
-        if (!Array.isArray(step.options) || step.options.length === 0) {
-          issues.push(`${stepLabel}: choice needs options.`);
+      if (missionStepTypes.includes(step.type)) {
+        if (!step.question) issues.push(`${stepLabel}: ${step.type} needs question.`);
+        if (["choice", "multiple_choice", "order_sentence", "choose_reply"].includes(step.type) && (!Array.isArray(step.options) || step.options.length === 0)) {
+          issues.push(`${stepLabel}: ${step.type} needs options.`);
         }
-        if (!step.correctAnswer) issues.push(`${stepLabel}: choice needs correctAnswer.`);
-        if (!step.hint) issues.push(`${stepLabel}: choice needs hint.`);
-        if (Array.isArray(step.options) && step.correctAnswer && !step.options.includes(step.correctAnswer)) {
+        if (!step.correctAnswer) issues.push(`${stepLabel}: ${step.type} needs correctAnswer.`);
+        if (!step.hint) issues.push(`${stepLabel}: ${step.type} needs hint.`);
+        if (["choice", "multiple_choice", "order_sentence", "choose_reply"].includes(step.type) && Array.isArray(step.options) && step.correctAnswer && !step.options.includes(step.correctAnswer)) {
           issues.push(`${stepLabel}: correctAnswer must exist in options.`);
         }
       }
@@ -1171,11 +1234,11 @@ function isQuestPlayable(quest) {
         return Boolean(step.speaker && step.text);
       }
 
-      if (step.type === "choice") {
+      if (missionStepTypes.includes(step.type)) {
+        const optionsRequired = ["choice", "multiple_choice", "order_sentence", "choose_reply"].includes(step.type);
         return Boolean(
           step.question &&
-          Array.isArray(step.options) &&
-          step.options.includes(step.correctAnswer) &&
+          (!optionsRequired || (Array.isArray(step.options) && step.options.includes(step.correctAnswer))) &&
           step.hint
         );
       }
@@ -1247,20 +1310,63 @@ function renderDailyLifeTownMap() {
   const questCards = document.getElementById("questCards");
   const quests = getQuestsByLanguage(currentPlayer.learningLanguage);
   const completedCount = quests.filter((quest) => isQuestCompleted(quest.id, currentPlayer)).length;
+  const locations = getCityLocations();
 
   questCards.replaceChildren();
   if (!quests.length) {
     setText("questProgress", "0 of 0 completed");
-    setText("questMessage", "No quests are available for this language yet.");
+    setText("questMessage", "No missions are available for this language yet.");
     return;
   }
 
-  quests.forEach((quest) => {
-    questCards.appendChild(renderQuestCard(quest));
+  locations.forEach((location) => {
+    const locationMissions = getQuestsByLocation(currentPlayer.learningLanguage, location.id);
+    const locationCard = renderLocationCard(location, locationMissions);
+    questCards.appendChild(locationCard);
   });
 
   setText("questProgress", `${completedCount} of ${quests.length} completed`);
-  setText("questMessage", "Choose an available quest to prepare your next adventure.");
+  setText("questMessage", "Choose a location, talk to the NPC, and complete an available mission.");
+}
+
+function renderLocationCard(location, locationMissions) {
+  const card = document.createElement("article");
+  const header = document.createElement("div");
+  const icon = document.createElement("span");
+  const titleWrap = document.createElement("div");
+  const title = document.createElement("h4");
+  const description = document.createElement("p");
+  const npc = document.createElement("p");
+  const missionList = document.createElement("div");
+
+  card.className = "city-location-card";
+  header.className = "city-location-header";
+  icon.className = "city-location-icon";
+  missionList.className = "mission-list";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = location.icon || "📍";
+  title.textContent = location.name;
+  description.textContent = location.description || "Enter this location to practice a real-life task.";
+  npc.className = "location-npc";
+  npc.textContent = `NPC: ${location.npc || "Guide"}`;
+
+  titleWrap.append(title, description, npc);
+  header.append(icon, titleWrap);
+  card.append(header);
+
+  if (!locationMissions.length) {
+    const empty = document.createElement("p");
+    empty.className = "quest-message";
+    empty.textContent = "No missions here for this language yet.";
+    card.appendChild(empty);
+    return card;
+  }
+
+  locationMissions.forEach((quest) => {
+    missionList.appendChild(renderQuestCard(quest));
+  });
+  card.appendChild(missionList);
+  return card;
 }
 
 function renderQuestCard(quest) {
@@ -1271,24 +1377,30 @@ function renderQuestCard(quest) {
   const statusBadge = document.createElement("span");
   const title = document.createElement("h4");
   const description = document.createElement("p");
+  const missionMeta = document.createElement("div");
+  const difficulty = document.createElement("span");
+  const topic = document.createElement("span");
   const rewards = document.createElement("div");
   const expReward = document.createElement("span");
   const coinReward = document.createElement("span");
   const actionButton = document.createElement("button");
 
-  card.className = `quest-card quest-${status.toLowerCase()}`;
+  card.className = `quest-card mission-card quest-${status.toLowerCase()}`;
   cardHeader.className = "quest-card-header";
   order.className = "quest-order";
   statusBadge.className = "quest-status";
+  missionMeta.className = "mission-meta";
   rewards.className = "quest-rewards";
   actionButton.className = status === "Available"
     ? "button button-primary"
     : "button button-secondary";
 
-  order.textContent = `Quest ${quest.order}`;
+  order.textContent = `Mission ${quest.order}`;
   statusBadge.textContent = status;
   title.textContent = quest.title;
   description.textContent = quest.description;
+  difficulty.textContent = getDifficultyLabel(quest.difficultyLevel);
+  topic.textContent = quest.topic || "Daily Life";
   expReward.textContent = `+${quest.rewardExp} EXP`;
   coinReward.textContent = `+${quest.rewardCoins} Coins`;
   actionButton.type = "button";
@@ -1297,13 +1409,14 @@ function renderQuestCard(quest) {
     actionButton.textContent = "Locked";
     actionButton.disabled = true;
   } else {
-    actionButton.textContent = status === "Completed" ? "Replay" : "Start Quest";
+    actionButton.textContent = status === "Completed" ? "Replay Mission" : "Start Mission";
     actionButton.addEventListener("click", () => startQuest(quest.id));
   }
 
   cardHeader.append(order, statusBadge);
+  missionMeta.append(difficulty, topic);
   rewards.append(expReward, coinReward);
-  card.append(cardHeader, title, description, rewards, actionButton);
+  card.append(cardHeader, title, description, missionMeta, rewards, actionButton);
   return card;
 }
 
@@ -1316,7 +1429,7 @@ function startQuest(questId) {
     quest.language !== currentPlayer.learningLanguage ||
     getQuestStatus(quest, currentPlayer) === "Locked"
   ) {
-    showToast("Quest is locked.", "warning");
+    showToast("Mission is locked.", "warning");
     return;
   }
 
@@ -1326,7 +1439,7 @@ function startQuest(questId) {
       currentQuestId: quest.id
     }) || currentPlayer;
     setText("mainQuest", currentPlayer.currentQuestId);
-    setText("questMessage", "This quest is not ready yet.");
+    setText("questMessage", "This mission is not ready yet.");
     return;
   }
 
@@ -1360,7 +1473,7 @@ function renderQuestScreen() {
 
 function renderQuestStep() {
   if (!isQuestPlayable(activeQuest)) {
-    showUserFriendlyError("This quest is not ready yet.");
+    showUserFriendlyError("This mission is not ready yet.");
     returnToMap();
     return;
   }
@@ -1401,14 +1514,31 @@ function renderQuestStep() {
     return;
   }
 
-  if (step.type === "choice") {
-    setText("questSpeakerLabel", "Question:");
-    const question = document.createElement("p");
+  if (missionStepTypes.includes(step.type)) {
+    renderAnswerStep(step, stepContent, choiceOptions, stepActions);
+    return;
+  }
 
-    question.className = "quest-question-text";
-    question.textContent = step.question || "";
-    stepContent.appendChild(question);
+  showQuestHint("This mission step type is not supported yet.");
+}
 
+function renderAnswerStep(step, stepContent, choiceOptions, stepActions) {
+  const question = document.createElement("p");
+  const stepLabels = {
+    choice: "Question",
+    multiple_choice: "Multiple Choice",
+    fill_blank: "Fill Blank",
+    order_sentence: "Order Sentence",
+    typing: "Typing",
+    choose_reply: "Choose Reply"
+  };
+
+  setText("questSpeakerLabel", `${stepLabels[step.type] || "Question"}:`);
+  question.className = "quest-question-text";
+  question.textContent = step.question || "";
+  stepContent.appendChild(question);
+
+  if (["choice", "multiple_choice", "order_sentence", "choose_reply"].includes(step.type)) {
     (step.options || []).forEach((option) => {
       const optionButton = document.createElement("button");
       optionButton.className = "button button-quiet quest-choice-button";
@@ -1420,7 +1550,27 @@ function renderQuestStep() {
     return;
   }
 
-  showQuestHint("This quest step type is not supported yet.");
+  const answerInput = document.createElement("input");
+  const submitButton = document.createElement("button");
+
+  answerInput.className = "quest-answer-input";
+  answerInput.type = "text";
+  answerInput.placeholder = step.inputPlaceholder || "Type your answer";
+  answerInput.autocomplete = "off";
+  submitButton.className = "button button-primary";
+  submitButton.type = "button";
+  submitButton.textContent = "Check Answer";
+  submitButton.addEventListener("click", () => handleTypedAnswer(answerInput.value));
+  answerInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleTypedAnswer(answerInput.value);
+    }
+  });
+
+  choiceOptions.appendChild(answerInput);
+  stepActions.appendChild(submitButton);
+  answerInput.focus();
 }
 
 function handleDialogueNext() {
@@ -1436,34 +1586,81 @@ function handleChoiceAnswer(selectedAnswer) {
 
   const step = activeQuest.steps[currentStepIndex];
 
-  if (!step || step.type !== "choice") {
+  if (!step || !missionStepTypes.includes(step.type)) {
     return;
   }
 
   selectedAnswerState = selectedAnswer;
 
-  if (selectedAnswer === step.correctAnswer) {
-    const continueButton = document.createElement("button");
-
-    playSound("correct");
-    setText("questFeedback", "Correct!");
-    document.getElementById("questFeedback").className = "quest-feedback quest-feedback-correct";
-    setText("questHint", "");
-    continueButton.className = "button button-primary";
-    continueButton.type = "button";
-    continueButton.textContent = currentStepIndex === activeQuest.steps.length - 1 ? "Finish Quest" : "Continue";
-    continueButton.addEventListener("click", handleDialogueNext);
-    document.getElementById("questStepActions").replaceChildren(continueButton);
-    document.querySelectorAll(".quest-choice-button").forEach((button) => {
-      button.disabled = true;
-      button.classList.toggle("choice-selected", button.textContent === selectedAnswer);
-    });
+  if (isCorrectAnswer(selectedAnswer, step)) {
+    showCorrectAnswer(selectedAnswer);
     return;
   }
 
   playSound("wrong");
   document.getElementById("questFeedback").className = "quest-feedback quest-feedback-wrong";
   showQuestHint(step.hint || "Try a different answer.");
+}
+
+function handleTypedAnswer(answer) {
+  if (!activeQuest) {
+    return;
+  }
+
+  const step = activeQuest.steps[currentStepIndex];
+
+  if (!step || !["fill_blank", "typing"].includes(step.type)) {
+    return;
+  }
+
+  selectedAnswerState = answer;
+
+  if (isCorrectAnswer(answer, step)) {
+    showCorrectAnswer(answer);
+    document.querySelectorAll(".quest-answer-input").forEach((input) => {
+      input.disabled = true;
+    });
+    return;
+  }
+
+  playSound("wrong");
+  document.getElementById("questFeedback").className = "quest-feedback quest-feedback-wrong";
+  showQuestHint(step.hint || "Check spelling and try again.");
+}
+
+function normalizeAnswer(answer) {
+  return String(answer || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.。!?！？]+$/g, "")
+    .toLowerCase();
+}
+
+function isCorrectAnswer(answer, step) {
+  const acceptedAnswers = Array.isArray(step.acceptedAnswers) && step.acceptedAnswers.length
+    ? step.acceptedAnswers
+    : [step.correctAnswer];
+  const normalizedAnswer = normalizeAnswer(answer);
+
+  return acceptedAnswers.some((acceptedAnswer) => normalizeAnswer(acceptedAnswer) === normalizedAnswer);
+}
+
+function showCorrectAnswer(selectedAnswer) {
+  const continueButton = document.createElement("button");
+
+  playSound("correct");
+  setText("questFeedback", "Correct!");
+  document.getElementById("questFeedback").className = "quest-feedback quest-feedback-correct";
+  setText("questHint", "");
+  continueButton.className = "button button-primary";
+  continueButton.type = "button";
+  continueButton.textContent = currentStepIndex === activeQuest.steps.length - 1 ? "Finish Mission" : "Continue";
+  continueButton.addEventListener("click", handleDialogueNext);
+  document.getElementById("questStepActions").replaceChildren(continueButton);
+  document.querySelectorAll(".quest-choice-button").forEach((button) => {
+    button.disabled = true;
+    button.classList.toggle("choice-selected", button.textContent === selectedAnswer);
+  });
 }
 
 function showQuestHint(message) {
@@ -1516,8 +1713,8 @@ function completeQuest() {
 
   setText("questCompleteTitle", activeQuest.title);
   setText("questCompleteMessage", rewardAlreadyClaimed
-    ? "Quest replay completed. Rewards were already claimed."
-    : "Quest completed! Rewards claimed.");
+    ? "Mission replay completed. Rewards were already claimed."
+    : "Mission completed! Rewards claimed.");
   document.getElementById("questCompleteMessage").textContent += addedVocabularyCount > 0
     ? " These words were added to your Vocabulary Book."
     : " These words are already in your Vocabulary Book.";
@@ -1753,7 +1950,7 @@ function renderVocabularyList(words) {
   vocabularyList.replaceChildren();
 
   if (!words.length) {
-    setText("vocabularyMessage", "No vocabulary learned yet. Complete quests to add words to your Vocabulary Book.");
+    setText("vocabularyMessage", "No vocabulary learned yet. Complete missions to add words to your Vocabulary Book.");
     return;
   }
 
@@ -1780,7 +1977,7 @@ function renderVocabularyCard(wordItem) {
   title.textContent = wordItem.word;
   meaning.innerHTML = `<strong>Meaning:</strong> ${wordItem.meaning || "No meaning available."}`;
   example.innerHTML = `<strong>Example:</strong> ${wordItem.example || "No example available."}`;
-  quest.innerHTML = `<strong>Quest:</strong> ${getQuestTitle(wordItem.questId)}`;
+  quest.innerHTML = `<strong>Mission:</strong> ${getQuestTitle(wordItem.questId)}`;
   review.innerHTML = `<strong>Reviewed:</strong> ${wordItem.reviewCount} ${wordItem.reviewCount === 1 ? "time" : "times"}`;
 
   if (wordItem.pinyin) {
@@ -1856,7 +2053,7 @@ function updateVocabularyFilterButtons() {
 
 function getQuestTitle(questId) {
   const quest = getQuestById(questId);
-  return quest ? quest.title : (questId || "Unknown Quest");
+  return quest ? quest.title : (questId || "Unknown Mission");
 }
 
 function startFlashcardReview() {
@@ -1988,7 +2185,7 @@ function markCurrentQuestCompletedForTest() {
     .find((item) => item.id === currentPlayer.currentQuestId);
 
   if (!quest) {
-    setText("questMessage", "Select an available quest before marking it completed.");
+    setText("questMessage", "Select an available mission before marking it completed.");
     return;
   }
 
@@ -2002,7 +2199,7 @@ function markCurrentQuestCompletedForTest() {
 
   currentPlayer = savePlayer({ ...currentPlayer, completedQuests }) || currentPlayer;
   renderDailyLifeTownMap();
-  setText("questMessage", `${quest.title} marked as completed. The next quest is now available.`);
+  setText("questMessage", `${quest.title} marked as completed. The next mission is now available.`);
 }
 
 function clearCompletedQuestsForTest() {
@@ -2020,7 +2217,7 @@ function clearCompletedQuestsForTest() {
   }) || currentPlayer;
   setText("mainQuest", currentPlayer.currentQuestId);
   renderDailyLifeTownMap();
-  setText("questMessage", "Completed quests cleared. The first quest is available again.");
+  setText("questMessage", "Completed missions cleared. The first mission is available again.");
 }
 
 function validateCharacterForm() {

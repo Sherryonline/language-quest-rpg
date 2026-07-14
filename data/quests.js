@@ -1,5 +1,76 @@
 "use strict";
 
+const cityLocations = [
+  {
+    id: "home",
+    name: "Home",
+    icon: "🏠",
+    description: "Start your day, meet your guide, and practice friendly basics.",
+    npc: "Mia",
+    order: 1
+  },
+  {
+    id: "cozy_cafe",
+    name: "Cozy Café",
+    icon: "☕",
+    description: "Enter the café, talk to the barista, and order drinks politely.",
+    npc: "Barista",
+    order: 2
+  },
+  {
+    id: "fresh_market",
+    name: "Fresh Market",
+    icon: "🛒",
+    description: "Shop for food, ask prices, and complete small market tasks.",
+    npc: "Shopkeeper",
+    order: 3
+  },
+  {
+    id: "city_station",
+    name: "City Station",
+    icon: "🚉",
+    description: "Ask for directions and understand where to go next.",
+    npc: "Station Guide",
+    order: 4
+  },
+  {
+    id: "work_office",
+    name: "Work Office",
+    icon: "💼",
+    description: "Introduce yourself and use useful language for work or school.",
+    npc: "Office Mentor",
+    order: 5
+  }
+];
+
+const questionTemplates = [
+  {
+    type: "multiple_choice",
+    label: "Multiple Choice",
+    description: "Pick the correct answer from a short list."
+  },
+  {
+    type: "fill_blank",
+    label: "Fill Blank",
+    description: "Type the missing word or phrase."
+  },
+  {
+    type: "order_sentence",
+    label: "Order Sentence",
+    description: "Choose the correctly ordered sentence."
+  },
+  {
+    type: "typing",
+    label: "Typing",
+    description: "Type the full answer."
+  },
+  {
+    type: "choose_reply",
+    label: "Choose Reply",
+    description: "Choose the best reply in a conversation."
+  }
+];
+
 const questData = [
   {
     id: "greeting_001",

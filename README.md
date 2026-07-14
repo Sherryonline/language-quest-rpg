@@ -8,10 +8,11 @@ There is no build step, backend, login system, or external library dependency.
 
 - Player profile creation and validation
 - Local save, continue, and reset using `linguaLifeSave`
-- Daily Life Town map
-- Five playable English quests
-- Five playable Chinese quests
-- Dialogue and multiple-choice quest engine
+- Lingua City map with five locations: Home, Cozy Café, Fresh Market, City Station, and Work Office
+- Five playable English missions
+- Five playable Chinese missions
+- Dialogue and multi-type mission engine
+- Supported question types: `multiple_choice`, `fill_blank`, `order_sentence`, `typing`, and `choose_reply`
 - Wrong-answer hints and retry flow
 - One-time quest rewards with replay protection
 - EXP, coins, levels, daily streak, badges, and achievement summary
@@ -35,6 +36,7 @@ There is no build step, backend, login system, or external library dependency.
 - Sprint 7: Language settings, safe switching, and language-specific progress
 - Sprint 8: Cozy Adventure polish, responsive UI, animations, and sound fallback
 - Sprint 9: MVP stabilization, data safety, validation, release checklist, and GitHub Pages readiness
+- City RPG upgrade: Lingua City locations, mission cards, difficulty/topic metadata, and expanded question types
 
 ## How to Run Locally
 
@@ -62,7 +64,15 @@ https://sherryonline.github.io/language-quest-rpg/
 
 This URL assumes GitHub Pages is configured to deploy the repository root from the `main` branch.
 
-## Playable Quests
+## Playable Missions
+
+Missions are grouped by Lingua City location and difficulty:
+
+- Home: greetings and first NPC interaction
+- Cozy Café: ordering drinks
+- Fresh Market: shopping and prices
+- City Station: asking for directions
+- Work Office: introductions for school/work situations
 
 English:
 
@@ -94,7 +104,15 @@ User settings are saved separately under:
 linguaLifeSettings
 ```
 
-Sprint 9 includes defensive save migration for older local data. Missing fields are safely initialized without resetting existing progress.
+Sprint 9 includes defensive save migration for older local data. Missing fields are safely initialized without resetting existing progress. Older `daily_life_town` saves are normalized to `lingua_city` while keeping completed missions, rewards, vocabulary, badges, and language progress.
+
+## Data Structure
+
+Game content is data-driven under `data/`:
+
+- `languages.js`: language labels and display settings
+- `quests.js`: base mission content and vocabulary
+- `city-data.js`: city locations, mission metadata, question templates, phrases, and runtime mission aliases
 
 ## Sound System
 
@@ -113,8 +131,8 @@ If files are missing or playback is blocked, the game uses short generated Web A
 - Reset Game clears local player progress.
 - Developer Test Tools are for testing only and stay collapsed by default.
 - Test desktop and mobile widths, especially 360px, 390px, 414px, and 768px.
-- Quest rewards should only be granted once per quest.
-- Replaying a completed quest should not duplicate EXP, coins, vocabulary, reward history, or badges.
+- Mission rewards should only be granted once per mission.
+- Replaying a completed mission should not duplicate EXP, coins, vocabulary, reward history, or badges.
 - Switching language should preserve all existing progress.
 
 ## Known Limitations
@@ -126,7 +144,7 @@ If files are missing or playback is blocked, the game uses short generated Web A
 - No voice recognition yet.
 - No leaderboard yet.
 - Vietnamese learning mode is prepared but not playable yet.
-- Only English and Chinese quests are playable.
+- Only English and Chinese missions are playable.
 - Vocabulary review does not give EXP or coins yet.
 - No spaced repetition algorithm yet.
 - Sound quality depends on local sound files or browser fallback tones.
@@ -149,4 +167,4 @@ language-quest-rpg/
 
 ## Release Status
 
-Sprint 9 completed. The MVP is ready for browser testing and GitHub Pages deployment.
+City RPG upgrade completed. The MVP is ready for browser testing and GitHub Pages deployment.

@@ -63,8 +63,10 @@
             <label for="difficulty">Difficulty</label>
             <select id="difficulty" name="difficulty" aria-describedby="difficultyError">
               <option value="">Select a starting level</option>
-              <option value="beginner">Beginner</option>
-              <option value="elementary">Elementary</option>
+              <option value="a0">A0 Starter</option>
+              <option value="a1">A1 Beginner</option>
+              <option value="a2">A2 Elementary</option>
+              <option value="b1">B1 Intermediate</option>
             </select>
             <p id="difficultyError" class="field-error" aria-live="polite"></p>
           </div>
@@ -137,7 +139,7 @@
         <div class="welcome-copy">
           <p class="eyebrow">Adventure Profile</p>
           <h2 id="welcomeMessage">Welcome!</h2>
-          <p>Your language journey is ready for future maps and quests.</p>
+          <p>Enter Lingua City, visit locations, talk to NPCs, and complete real-life missions.</p>
         </div>
         <div class="level-card">
           <span>Level</span>
@@ -179,44 +181,37 @@
         <article class="info-card"><span>Daily Study Goal</span><strong id="mainDailyGoal">5 minutes/day</strong></article>
         <article class="info-card"><span>EXP</span><strong id="mainExp">0</strong></article>
         <article class="info-card"><span>Coins</span><strong id="mainCoins">0</strong></article>
-        <article class="info-card"><span>Current Map</span><strong id="mainMap">Daily Life Town</strong></article>
-        <article class="info-card"><span>Current Quest ID</span><strong id="mainQuest">greeting_001</strong></article>
+        <article class="info-card"><span>Current City</span><strong id="mainMap">Lingua City</strong></article>
+        <article class="info-card"><span>Current Mission ID</span><strong id="mainQuest">greeting_001</strong></article>
         <article class="info-card"><span>Streak</span><strong id="mainStreak">0 days</strong></article>
       </div>
 
       <section class="town-map" aria-labelledby="townMapTitle">
         <header class="town-map-header">
           <div>
-            <p class="eyebrow">Current Map</p>
-            <h2 id="townMapTitle">Daily Life Town</h2>
-            <p>Practice real-life conversations in simple daily situations.</p>
+            <p class="eyebrow">City Map</p>
+            <h2 id="townMapTitle">Lingua City</h2>
+            <p>Choose a location, enter the scene, and complete a mission through real-life language tasks.</p>
           </div>
-          <span class="map-badge">Town Map</span>
+          <span class="map-badge">City Map</span>
         </header>
-
-        <div class="town-landmarks" aria-label="Daily Life Town locations">
-          <div><span aria-hidden="true">🏠</span><strong>Town Square</strong></div>
-          <div><span aria-hidden="true">☕</span><strong>Coffee Shop</strong></div>
-          <div><span aria-hidden="true">🛒</span><strong>Market Street</strong></div>
-          <div><span aria-hidden="true">🧭</span><strong>Travel Corner</strong></div>
-        </div>
 
         <div class="quest-section-header">
           <div>
-            <p class="eyebrow">Quest Board</p>
-            <h3>Town Quests</h3>
+            <p class="eyebrow">Mission Board</p>
+            <h3>Locations & Missions</h3>
           </div>
           <p id="questProgress">0 of 5 completed</p>
         </div>
-        <p id="questMessage" class="quest-message" aria-live="polite">Choose an available quest to prepare your next adventure.</p>
-        <div id="questCards" class="quest-grid"></div>
+        <p id="questMessage" class="quest-message" aria-live="polite">Choose a location, then start an available mission.</p>
+        <div id="questCards" class="city-location-grid"></div>
 
         <details class="developer-tools">
           <summary>Developer Test Tools</summary>
-          <p>Temporary controls for testing Sprint 2 quest unlock rules.</p>
+          <p>Temporary controls for testing mission unlock rules.</p>
           <div class="developer-actions">
-            <button id="markQuestCompleteButton" class="button button-secondary" type="button">Mark Current Quest as Completed</button>
-            <button id="clearCompletedQuestsButton" class="button button-quiet" type="button">Clear Completed Quests</button>
+            <button id="markQuestCompleteButton" class="button button-secondary" type="button">Mark Current Mission as Completed</button>
+            <button id="clearCompletedQuestsButton" class="button button-quiet" type="button">Clear Completed Missions</button>
             <button id="devSwitchEnglishButton" class="button button-quiet" type="button">Switch to English</button>
             <button id="devSwitchChineseButton" class="button button-quiet" type="button">Switch to Chinese</button>
           </div>
@@ -236,7 +231,7 @@
           <article class="info-card"><span>Total EXP</span><strong id="summaryExp">0</strong></article>
           <article class="info-card"><span>Total Coins</span><strong id="summaryCoins">0</strong></article>
           <article class="info-card"><span>Current Streak</span><strong id="summaryStreak">0 days</strong></article>
-          <article class="info-card"><span>Completed Quests</span><strong id="summaryCompletedQuests">0</strong></article>
+          <article class="info-card"><span>Completed Missions</span><strong id="summaryCompletedQuests">0</strong></article>
           <article class="info-card"><span>Learned Words</span><strong id="summaryLearnedWords">0</strong></article>
           <article class="info-card"><span>Words Reviewed</span><strong id="summaryReviewedWords">0</strong></article>
           <article class="info-card"><span>Badges</span><strong id="summaryBadges">0 / 9</strong></article>
@@ -247,7 +242,8 @@
         </div>
       </section>
 
-      <section class="badges-section" aria-labelledby="badgesTitle">
+      <details class="badges-section" aria-labelledby="badgesTitle">
+        <summary>Badge Case</summary>
         <div class="quest-section-header">
           <div>
             <p class="eyebrow">Badge Case</p>
@@ -255,7 +251,7 @@
           </div>
         </div>
         <div id="badgesGrid" class="badges-grid"></div>
-      </section>
+      </details>
 
       <div class="main-actions">
         <button id="vocabularyBookButton" class="button button-primary" type="button">Vocabulary Book</button>
@@ -266,9 +262,9 @@
 
     <section id="rewardPopup" class="reward-popup hidden" aria-labelledby="rewardPopupTitle" role="dialog" aria-modal="true">
       <div class="reward-popup-card">
-        <p class="eyebrow">Quest Reward</p>
-        <h2 id="rewardPopupTitle">Quest Completed!</h2>
-        <p id="rewardPopupQuestTitle">Quest title</p>
+        <p class="eyebrow">Mission Reward</p>
+        <h2 id="rewardPopupTitle">Mission Completed!</h2>
+        <p id="rewardPopupQuestTitle">Mission title</p>
         <div id="rewardPopupRewards" class="quest-complete-rewards"></div>
         <div id="rewardPopupLevel" class="reward-popup-section"></div>
         <div id="rewardPopupBadges" class="reward-popup-section"></div>
@@ -286,7 +282,7 @@
         <button id="cancelLanguageSwitchButton" class="button button-quiet" type="button">Cancel</button>
       </header>
 
-      <p class="quest-message">Changing your learning language will switch your quest map and vocabulary view. Your existing progress will be kept.</p>
+      <p class="quest-message">Changing your learning language will switch your city missions and vocabulary view. Your existing progress will be kept.</p>
       <p id="currentLanguageSwitchLabel" class="screen-status">Current language: English 🇬🇧</p>
 
       <div id="languageSwitchOptions" class="language-switch-options"></div>
@@ -295,9 +291,9 @@
     <section id="questScreen" class="screen quest-screen hidden" aria-labelledby="questScreenTitle">
       <header class="quest-play-header">
         <div>
-          <p class="eyebrow">Active Quest</p>
-          <h2 id="questScreenTitle">Quest</h2>
-          <p id="questScreenDescription">Complete each step to finish the quest.</p>
+          <p class="eyebrow">Active Mission</p>
+          <h2 id="questScreenTitle">Mission</h2>
+          <p id="questScreenDescription">Complete each step to finish the mission.</p>
         </div>
         <div class="quest-player-status">
           <span id="questPlayerName">Player</span>
@@ -321,8 +317,8 @@
       </article>
 
       <article id="questCompletePanel" class="quest-complete-panel hidden">
-        <p class="eyebrow">Quest Completed</p>
-        <h2 id="questCompleteTitle">Quest Completed!</h2>
+        <p class="eyebrow">Mission Completed</p>
+        <h2 id="questCompleteTitle">Mission Completed!</h2>
         <p id="questCompleteMessage">Rewards claimed.</p>
 
         <div class="quest-complete-rewards">
@@ -390,7 +386,7 @@
           <div id="flashcardBackContent" class="flashcard-back-content hidden">
             <p><strong>Meaning:</strong> <span id="flashcardMeaning">Meaning</span></p>
             <p><strong>Example:</strong> <span id="flashcardExample">Example</span></p>
-            <p><strong>Quest:</strong> <span id="flashcardQuest">Quest</span></p>
+            <p><strong>Mission:</strong> <span id="flashcardQuest">Mission</span></p>
           </div>
         </article>
 
@@ -431,13 +427,14 @@
       <div id="appModalContent" class="app-modal-content"></div>
     </section>
     <footer class="app-footer">
-      <span>Version: MVP Sprint 9</span>
+      <span>Version: City RPG Sprint</span>
       <span>Build: Local Browser Version</span>
     </footer>
   </main>
 
   <script src="data/languages.js"></script>
   <script src="data/quests.js"></script>
+  <script src="data/city-data.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
