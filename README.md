@@ -26,7 +26,7 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 
 ## Run locally
 
-1. Open the `lingua-life-rpg` folder in VS Code.
+1. Open the `language-quest-rpg` folder in VS Code.
 2. Run `index.html` with the Live Server extension, or serve the folder with another static HTTP server.
 3. Open the local URL shown by the server.
 
@@ -54,7 +54,7 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 ## Project structure
 
 ```text
-lingua-life-rpg/
+language-quest-rpg/
 ├── index.html
 ├── style.css
 ├── script.js
