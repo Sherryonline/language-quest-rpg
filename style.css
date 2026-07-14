@@ -692,6 +692,7 @@ h2 {
   width: 100%;
   min-height: 54px;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .choice-selected {
@@ -761,6 +762,7 @@ h2 {
   padding-left: 20px;
   color: var(--main-text);
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {

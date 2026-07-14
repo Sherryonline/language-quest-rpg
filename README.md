@@ -36,6 +36,33 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 - Back to Map flow from active and completed quests
 - Backward-compatible save loading for older Sprint 1 and Sprint 2 localStorage data
 
+### Sprint 4 - MVP quest content
+
+- Five fully playable English Daily Life Town quests
+- Five fully playable Chinese Daily Life Town quests
+- Complete vocabulary, dialogue, choices, hints, and rewards for every MVP quest
+- Chinese vocabulary includes word, pinyin, Vietnamese meaning, and example sentence
+- English vocabulary includes word, Vietnamese meaning, and example sentence
+- Sequential quest unlock chain for both English and Chinese paths
+
+## Playable quests
+
+English:
+
+- Greeting (`greeting_001`)
+- Order Coffee (`coffee_001`)
+- Buy Food (`food_001`)
+- Ask for Directions (`direction_001`)
+- Introduce Yourself (`introduce_001`)
+
+Chinese:
+
+- 问候 (`zh_greeting_001`)
+- 点咖啡 (`zh_coffee_001`)
+- 买食物 (`zh_food_001`)
+- 问路 (`zh_direction_001`)
+- 自我介绍 (`zh_introduce_001`)
+
 ## How to play a quest
 
 1. Create or continue a player.
@@ -50,6 +77,10 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 
 - `dialogue`: Shows an NPC speaker and dialogue text, then advances with Next.
 - `choice`: Shows a question and answer buttons, checks the correct answer, and shows hints for wrong answers.
+
+## Quest unlocks
+
+Quests unlock in order for the selected learning language only. Completing Quest 1 unlocks Quest 2, completing Quest 2 unlocks Quest 3, and so on until all five Daily Life Town quests are complete. Replaying a completed quest does not add duplicate EXP or coins.
 
 ## Run locally
 
@@ -71,13 +102,14 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 
 ## Current limitations
 
-- Only the Greeting quest has full playable content for English and Chinese.
-- Other quests still have metadata and will be expanded in Sprint 4.
+- Only dialogue and multiple-choice gameplay are supported.
 - Quest progress inside a quest is not saved on browser refresh yet.
 - Vocabulary is shown on quest completion, but the full Vocabulary Book will be added in a later sprint.
 - Developer test tools are temporary and remain inside a collapsible section.
 - Data is saved only in the current browser's localStorage.
-- There is no AI NPC, voice, sound, login, backend, database, or leaderboard yet.
+- There is no voice recognition yet.
+- There is no AI NPC yet.
+- There is no backend, login, database, or leaderboard yet.
 - Battles, full vocabulary books, and full map movement are not implemented.
 
 ## Project structure

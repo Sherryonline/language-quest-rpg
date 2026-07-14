@@ -295,7 +295,7 @@ function startQuest(questId) {
       currentQuestId: quest.id
     }) || currentPlayer;
     setText("mainQuest", currentPlayer.currentQuestId);
-    setText("questMessage", `${quest.title} content will be added in Sprint 4.`);
+    setText("questMessage", "This quest is not ready yet.");
     return;
   }
 
@@ -469,7 +469,8 @@ function completeQuest() {
   vocabulary.forEach((item) => {
     const listItem = document.createElement("li");
     const pinyin = item.pinyin ? ` (${item.pinyin})` : "";
-    listItem.textContent = `${item.word}${pinyin} = ${item.meaning}`;
+    const example = item.example ? ` Example: ${item.example}` : "";
+    listItem.textContent = `${item.word}${pinyin} = ${item.meaning}.${example}`;
     vocabularyList.appendChild(listItem);
   });
 
