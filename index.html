@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lingua Life RPG — learn languages through real-life adventures.">
+  <title>Lingua Life RPG</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section id="startScreen" class="screen start-screen" aria-labelledby="gameTitle">
+      <div class="game-emblem" aria-hidden="true">LL</div>
+      <p class="eyebrow">Language Learning RPG</p>
+      <h1 id="gameTitle">Lingua Life RPG</h1>
+      <p class="slogan">Learn languages through real-life adventures.</p>
+
+      <div class="start-actions">
+        <button id="startGameButton" class="button button-primary" type="button">Start Game</button>
+        <button id="continueGameButton" class="button button-secondary" type="button" disabled>Continue Game</button>
+        <button id="startResetButton" class="button button-danger" type="button">Reset Game</button>
+      </div>
+      <p id="startStatus" class="screen-status" aria-live="polite">No saved character found.</p>
+    </section>
+
+    <section id="characterScreen" class="screen character-screen hidden" aria-labelledby="characterTitle">
+      <header class="screen-header">
+        <div>
+          <p class="eyebrow">New Adventure</p>
+          <h2 id="characterTitle">Create Your Character</h2>
+        </div>
+        <button id="characterBackButton" class="button button-quiet" type="button">Back</button>
+      </header>
+
+      <form id="characterForm" novalidate>
+        <div class="form-grid">
+          <div class="form-field form-field-wide">
+            <label for="playerName">Player Name</label>
+            <input id="playerName" name="playerName" type="text" autocomplete="nickname" aria-describedby="playerNameError">
+            <p id="playerNameError" class="field-error" aria-live="polite"></p>
+          </div>
+
+          <div class="form-field">
+            <label for="nativeLanguage">Native Language</label>
+            <select id="nativeLanguage" name="nativeLanguage">
+              <option value="vi" selected>Vietnamese</option>
+              <option value="en">English</option>
+              <option value="zh">Chinese</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="learningLanguage">Learning Language</label>
+            <select id="learningLanguage" name="learningLanguage" aria-describedby="learningLanguageError">
+              <option value="">Select a language</option>
+              <option value="en">English</option>
+              <option value="zh">Chinese</option>
+            </select>
+            <p id="learningLanguageError" class="field-error" aria-live="polite"></p>
+          </div>
+
+          <div class="form-field">
+            <label for="difficulty">Difficulty</label>
+            <select id="difficulty" name="difficulty" aria-describedby="difficultyError">
+              <option value="">Select a starting level</option>
+              <option value="beginner">Beginner</option>
+              <option value="elementary">Elementary</option>
+            </select>
+            <p id="difficultyError" class="field-error" aria-live="polite"></p>
+          </div>
+
+          <div class="form-field">
+            <label for="learningGoal">Learning Goal</label>
+            <select id="learningGoal" name="learningGoal" aria-describedby="learningGoalError">
+              <option value="">Select a learning goal</option>
+              <option value="daily_life">Daily Life</option>
+              <option value="travel">Travel</option>
+              <option value="work">Work</option>
+              <option value="culture">Culture</option>
+              <option value="all_purpose">All Purpose</option>
+            </select>
+            <p id="learningGoalError" class="field-error" aria-live="polite"></p>
+          </div>
+
+          <div class="form-field">
+            <label for="dailyGoalMinutes">Daily Study Goal</label>
+            <select id="dailyGoalMinutes" name="dailyGoalMinutes" aria-describedby="dailyGoalError">
+              <option value="">Select a daily goal</option>
+              <option value="5">5 minutes/day</option>
+              <option value="10">10 minutes/day</option>
+              <option value="15">15 minutes/day</option>
+            </select>
+            <p id="dailyGoalError" class="field-error" aria-live="polite"></p>
+          </div>
+
+          <fieldset class="form-field form-field-wide avatar-field" aria-describedby="avatarError">
+            <legend>Choose Your Avatar</legend>
+            <div class="avatar-grid">
+              <label class="avatar-option">
+                <input id="avatarScholar" type="radio" name="avatar" value="scholar">
+                <span class="avatar-icon" aria-hidden="true">📚</span>
+                <strong>Scholar</strong>
+              </label>
+              <label class="avatar-option">
+                <input id="avatarTraveler" type="radio" name="avatar" value="traveler">
+                <span class="avatar-icon" aria-hidden="true">🧭</span>
+                <strong>Traveler</strong>
+              </label>
+              <label class="avatar-option">
+                <input id="avatarWorker" type="radio" name="avatar" value="worker">
+                <span class="avatar-icon" aria-hidden="true">🛠️</span>
+                <strong>Worker</strong>
+              </label>
+              <label class="avatar-option">
+                <input id="avatarStudent" type="radio" name="avatar" value="student">
+                <span class="avatar-icon" aria-hidden="true">🎒</span>
+                <strong>Student</strong>
+              </label>
+            </div>
+            <p id="avatarError" class="field-error" aria-live="polite"></p>
+          </fieldset>
+        </div>
+
+        <div class="form-actions">
+          <button class="button button-primary" type="submit">Start Adventure</button>
+          <button id="formBackButton" class="button button-quiet" type="button">Back</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="mainGameScreen" class="screen main-game-screen hidden" aria-labelledby="welcomeMessage">
+      <header class="main-game-header">
+        <div class="avatar-summary">
+          <div id="mainAvatar" class="main-avatar" aria-hidden="true">📚</div>
+          <strong id="mainAvatarName">Scholar</strong>
+        </div>
+        <div class="welcome-copy">
+          <p class="eyebrow">Adventure Profile</p>
+          <h2 id="welcomeMessage">Welcome!</h2>
+          <p>Your language journey is ready for future maps and quests.</p>
+        </div>
+        <div class="level-card">
+          <span>Level</span>
+          <strong id="mainLevel">1</strong>
+        </div>
+      </header>
+
+      <div class="profile-grid">
+        <article class="info-card"><span>Native Language</span><strong id="mainNativeLanguage">Vietnamese</strong></article>
+        <article class="info-card"><span>Learning Language</span><strong id="mainLearningLanguage">English</strong></article>
+        <article class="info-card"><span>Difficulty</span><strong id="mainDifficulty">Beginner</strong></article>
+        <article class="info-card"><span>Learning Goal</span><strong id="mainLearningGoal">Daily Life</strong></article>
+        <article class="info-card"><span>Daily Study Goal</span><strong id="mainDailyGoal">5 minutes/day</strong></article>
+        <article class="info-card"><span>EXP</span><strong id="mainExp">0</strong></article>
+        <article class="info-card"><span>Coins</span><strong id="mainCoins">0</strong></article>
+        <article class="info-card"><span>Current Map</span><strong id="mainMap">Daily Life Town</strong></article>
+        <article class="info-card"><span>Current Quest ID</span><strong id="mainQuest">greeting_001</strong></article>
+        <article class="info-card"><span>Streak</span><strong id="mainStreak">0 days</strong></article>
+      </div>
+
+      <div class="main-actions">
+        <button id="mainBackButton" class="button button-secondary" type="button">Back to Start</button>
+        <button id="mainResetButton" class="button button-danger" type="button">Reset Game</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
