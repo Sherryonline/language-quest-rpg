@@ -81,6 +81,17 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 - Chinese display support with pinyin and Chinese-friendly font stack
 - Vietnamese prepared in config as a future non-playable learning mode
 
+### Sprint 8 - UX polish and sound
+
+- CSS variable-based Cozy Adventure theme
+- Improved visual polish for start, character, main, quest, reward, vocabulary, flashcard, and language screens
+- Lightweight CSS animations for screen entry, card hover, feedback, progress, popup, and flashcard states
+- Toast feedback for quick user messages
+- Mute/Unmute button with saved preference under `linguaLifeSettings`
+- Safe sound manager for click, correct, wrong, quest complete, level-up, and badge events
+- Web Audio API fallback tones when MP3 files are missing or blocked
+- Responsive layout refinements for desktop, tablet, and mobile
+
 ## Playable quests
 
 English:
@@ -168,6 +179,16 @@ The achievement area shows English and Chinese progress separately. Completed qu
 
 The Vocabulary Book supports a language filter and a review filter at the same time. For example, Chinese plus Favorites shows only favorite Chinese words. Chinese cards display pinyin when available, while English cards omit pinyin.
 
+## Theme system
+
+The game uses a CSS variable-based Cozy Adventure theme in `:root`. Theme variables control background, cards, buttons, quest states, text, borders, shadows, and radii so future themes can be added without changing game logic.
+
+## Sound system
+
+The sound manager attempts to play local MP3 files from `assets/sounds/` for click, correct, wrong, quest complete, and level-up events. If a file is missing or browser playback is blocked, the game falls back to short generated Web Audio tones. If Web Audio is unavailable, sound is skipped silently.
+
+The Mute/Unmute setting is saved separately from player progress using the `linguaLifeSettings` localStorage key.
+
 ## Run locally
 
 1. Open the `language-quest-rpg` folder in VS Code.
@@ -200,7 +221,9 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 - There is no server sync yet.
 - There is no login or cloud save yet.
 - There is no leaderboard yet.
-- There are no sound or animation reward effects yet.
+- Sound quality depends on local sound files or browser fallback tones.
+- There are no professional game art assets yet.
+- There is no advanced animation system yet.
 - Developer test tools are temporary and remain inside a collapsible section.
 - Data is saved only in the current browser's localStorage.
 - There is no voice recognition yet.

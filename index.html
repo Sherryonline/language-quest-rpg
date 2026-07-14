@@ -143,6 +143,7 @@
           <span>Level</span>
           <strong id="mainLevel">1</strong>
         </div>
+        <button id="soundToggleButton" class="button button-quiet sound-toggle-button" type="button" aria-pressed="false">Sound On</button>
       </header>
 
       <section class="level-progress-section" aria-labelledby="levelProgressTitle">
@@ -423,6 +424,11 @@
         <button id="clearVocabularyFiltersButton" class="button button-quiet" type="button">Show All</button>
         <button id="returnToMapFromVocabularyButton" class="button button-secondary" type="button">Back to Map</button>
       </div>
+    </section>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    <section id="appModal" class="app-modal hidden" role="dialog" aria-modal="true">
+      <div id="appModalContent" class="app-modal-content"></div>
     </section>
   </main>
 

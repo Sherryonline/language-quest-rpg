@@ -1,6 +1,7 @@
 "use strict";
 
 const STORAGE_KEY = "linguaLifeSave";
+const SETTINGS_KEY = "linguaLifeSettings";
 const screenIds = {
   start: "startScreen",
   character: "characterScreen",
@@ -31,6 +32,14 @@ const learningGoalLabels = {
   all_purpose: "All Purpose"
 };
 const levelThresholds = [0, 100, 250, 500, 850, 1300, 1900, 2600, 3500, 4600];
+const soundFiles = {
+  click: "assets/sounds/click.mp3",
+  correct: "assets/sounds/correct.mp3",
+  wrong: "assets/sounds/wrong.mp3",
+  questComplete: "assets/sounds/quest-complete.mp3",
+  levelUp: "assets/sounds/level-up.mp3",
+  badge: "assets/sounds/level-up.mp3"
+};
 
 let currentPlayer = null;
 let activeQuest = null;
@@ -42,6 +51,194 @@ let activeFlashcards = [];
 let currentFlashcardIndex = 0;
 let isFlashcardFlipped = false;
 let flashcardReviewedCount = 0;
+let userSettings = loadSoundSetting();
+let soundManager = {
+  initialized: false,
+  audioContext: null,
+  audioElements: {}
+};
+
+function applyTheme(themeName = "cozy_adventure") {
+  document.documentElement.dataset.theme = themeName;
+  userSettings = {
+    ...userSettings,
+    theme: themeName
+  };
+  saveSoundSetting();
+}
+
+function loadSoundSetting() {
+  try {
+    const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return {
+      muted: Boolean(savedSettings.muted),
+      theme: savedSettings.theme || "cozy_adventure"
+    };
+  } catch (error) {
+    return { muted: false, theme: "cozy_adventure" };
+  }
+}
+
+function saveSoundSetting() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(userSettings));
+  } catch (error) {
+    console.warn("Lingua Life RPG could not save settings.", error);
+  }
+}
+
+function isMuted() {
+  return Boolean(userSettings.muted);
+}
+
+function initSoundManager() {
+  if (soundManager.initialized) {
+    return;
+  }
+
+  soundManager.initialized = true;
+  Object.entries(soundFiles).forEach(([name, path]) => {
+    try {
+      const audio = new Audio(path);
+      audio.preload = "auto";
+      audio.volume = 0.45;
+      soundManager.audioElements[name] = audio;
+    } catch (error) {
+      soundManager.audioElements[name] = null;
+    }
+  });
+}
+
+function playSound(soundName) {
+  if (isMuted()) {
+    return;
+  }
+
+  initSoundManager();
+  const audio = soundManager.audioElements[soundName];
+
+  if (!audio) {
+    playFallbackTone(soundName);
+    return;
+  }
+
+  try {
+    audio.currentTime = 0;
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => playFallbackTone(soundName));
+    }
+  } catch (error) {
+    playFallbackTone(soundName);
+  }
+}
+
+function playFallbackTone(soundName) {
+  if (isMuted()) {
+    return;
+  }
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return;
+  }
+
+  try {
+    if (!soundManager.audioContext) {
+      soundManager.audioContext = new AudioContextClass();
+    }
+
+    const toneMap = {
+      click: [360, 0.055, "triangle", 0.08],
+      correct: [720, 0.12, "sine", 0.12],
+      wrong: [180, 0.16, "sawtooth", 0.08],
+      questComplete: [880, 0.18, "triangle", 0.12],
+      levelUp: [1040, 0.22, "sine", 0.12],
+      badge: [980, 0.16, "triangle", 0.1]
+    };
+    const [frequency, duration, type, volume] = toneMap[soundName] || toneMap.click;
+    const context = soundManager.audioContext;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(volume, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration);
+  } catch (error) {
+    // Sound is optional; skip silently if the browser blocks audio.
+  }
+}
+
+function toggleMute() {
+  userSettings = {
+    ...userSettings,
+    muted: !isMuted()
+  };
+  saveSoundSetting();
+  renderSoundToggle();
+  showToast(isMuted() ? "Sound muted." : "Sound unmuted.", "info");
+}
+
+function renderSoundToggle() {
+  const button = document.getElementById("soundToggleButton");
+  if (!button) {
+    return;
+  }
+
+  button.textContent = isMuted() ? "Sound Off" : "Sound On";
+  button.setAttribute("aria-pressed", String(!isMuted()));
+}
+
+function renderPlayerHeader() {
+  renderSoundToggle();
+  renderLevelProgressBar();
+  renderStreakInfo();
+}
+
+function showToast(message, type = "info") {
+  const toastContainer = document.getElementById("toastContainer");
+  if (!toastContainer) {
+    return;
+  }
+
+  const toast = document.createElement("p");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  window.setTimeout(() => {
+    toast.remove();
+  }, 3200);
+}
+
+function showFeedbackMessage(message, type = "info") {
+  showToast(message, type);
+}
+
+function openModal(content) {
+  const modal = document.getElementById("appModal");
+  const modalContent = document.getElementById("appModalContent");
+
+  if (!modal || !modalContent) {
+    return;
+  }
+
+  modalContent.replaceChildren();
+  if (typeof content === "string") {
+    modalContent.textContent = content;
+  } else if (content) {
+    modalContent.appendChild(content);
+  }
+  modal.classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("appModal").classList.add("hidden");
+}
 
 function normalizeVocabularyId(word, language) {
   const rawWord = String(word || "");
@@ -714,6 +911,7 @@ function switchLearningLanguage(languageCode) {
       : latestQuestId
   }) || currentPlayer;
   currentVocabularyLanguageFilter = "current";
+  showToast(`Switched to ${formatLanguageDisplay(languageCode)}.`, "success");
   renderMainGameScreen();
 }
 
@@ -883,8 +1081,7 @@ function renderMainGameScreen() {
   setText("mainCoins", player.coins);
   setText("mainMap", formatIdentifier(player.currentMap));
   setText("mainQuest", player.currentQuestId);
-  renderLevelProgressBar();
-  renderStreakInfo();
+  renderPlayerHeader();
   renderAchievementSummary();
   renderBadgesSection();
   renderLanguageSettings();
@@ -966,6 +1163,7 @@ function startQuest(questId) {
     quest.language !== currentPlayer.learningLanguage ||
     getQuestStatus(quest, currentPlayer) === "Locked"
   ) {
+    showToast("Quest is locked.", "warning");
     return;
   }
 
@@ -1093,6 +1291,7 @@ function handleChoiceAnswer(selectedAnswer) {
   if (selectedAnswer === step.correctAnswer) {
     const continueButton = document.createElement("button");
 
+    playSound("correct");
     setText("questFeedback", "Correct!");
     document.getElementById("questFeedback").className = "quest-feedback quest-feedback-correct";
     setText("questHint", "");
@@ -1108,6 +1307,7 @@ function handleChoiceAnswer(selectedAnswer) {
     return;
   }
 
+  playSound("wrong");
   document.getElementById("questFeedback").className = "quest-feedback quest-feedback-wrong";
   showQuestHint(step.hint || "Try a different answer.");
 }
@@ -1152,6 +1352,10 @@ function completeQuest() {
   }
 
   rewardData.newBadges = checkAndUnlockBadges();
+  playSound(rewardData.leveledUp ? "levelUp" : "questComplete");
+  if (rewardData.newBadges.length) {
+    playSound("badge");
+  }
 
   const vocabulary = Array.isArray(activeQuest.vocabulary) ? activeQuest.vocabulary : [];
   const vocabularyList = document.getElementById("questVocabularyList");
@@ -1575,6 +1779,7 @@ function finishFlashcardReview(showComplete = true) {
   setText("flashcardReviewedCount", flashcardReviewedCount);
 
   if (showComplete) {
+    showToast("Vocabulary review completed.", "success");
     renderVocabularyBookScreen();
     document.getElementById("flashcardCompletePanel").classList.remove("hidden");
   }
@@ -1778,6 +1983,7 @@ document.getElementById("characterForm").addEventListener("submit", handleCharac
 document.getElementById("vocabularyBookButton").addEventListener("click", openVocabularyBook);
 document.getElementById("changeLanguageButton").addEventListener("click", renderLanguageSwitchScreen);
 document.getElementById("cancelLanguageSwitchButton").addEventListener("click", renderMainGameScreen);
+document.getElementById("soundToggleButton").addEventListener("click", toggleMute);
 document.getElementById("mainBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
 document.getElementById("returnToMapButton").addEventListener("click", returnToMap);
@@ -1810,5 +2016,14 @@ document.getElementById("markQuestCompleteButton").addEventListener("click", mar
 document.getElementById("clearCompletedQuestsButton").addEventListener("click", clearCompletedQuestsForTest);
 document.getElementById("devSwitchEnglishButton").addEventListener("click", () => switchLearningLanguage("en"));
 document.getElementById("devSwitchChineseButton").addEventListener("click", () => switchLearningLanguage("zh"));
+document.getElementById("appModal").addEventListener("click", closeModal);
 
+document.addEventListener("click", (event) => {
+  if (event.target.closest("button")) {
+    playSound("click");
+  }
+});
+
+applyTheme(userSettings.theme);
+renderSoundToggle();
 renderStartScreen();
