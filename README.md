@@ -70,6 +70,17 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 - Achievement summary with level, EXP, coins, streak, quests, vocabulary, reviews, and badges
 - Replay-safe reward, badge, and reward history behavior
 
+### Sprint 7 - Language mode management
+
+- Shared language configuration in `data/languages.js`
+- Main-screen Language Settings section
+- Safe learning language switching between English and Chinese
+- Current quest selection updates to the latest available quest for the selected language
+- Language-specific quest and vocabulary progress summary
+- Vocabulary Book language filter for current language, English, Chinese, and all learned words
+- Chinese display support with pinyin and Chinese-friendly font stack
+- Vietnamese prepared in config as a future non-playable learning mode
+
 ## Playable quests
 
 English:
@@ -143,6 +154,20 @@ Badges unlock from quest completion, streak progress, vocabulary collection, fla
 
 First-time quest completion shows a reward popup with EXP, coins, level-up information, newly unlocked badges, and vocabulary status. A reward history item is saved only when rewards are actually granted. Replaying a completed quest shows that rewards were already claimed and does not create duplicate reward history.
 
+## Language settings
+
+The Main Game Screen shows the player's native language and current learning language with readable labels and flags. Changing learning language switches the visible quest map and default vocabulary view while keeping completed quests, learned words, EXP, coins, level, streak, badges, and reward history.
+
+English and Chinese are playable in Sprint 7. Vietnamese is present in the language configuration for future support, but it is marked as coming soon and is not selectable as a learning mode yet.
+
+## Language-specific progress
+
+The achievement area shows English and Chinese progress separately. Completed quests are counted by quest language, and learned words are counted by vocabulary language, so progress from one mode is not mixed into the other.
+
+## Vocabulary language filters
+
+The Vocabulary Book supports a language filter and a review filter at the same time. For example, Chinese plus Favorites shows only favorite Chinese words. Chinese cards display pinyin when available, while English cards omit pinyin.
+
 ## Run locally
 
 1. Open the `language-quest-rpg` folder in VS Code.
@@ -169,6 +194,9 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 - There is no spaced repetition algorithm yet.
 - There is no pronunciation audio yet.
 - Daily streak uses browser local date.
+- Vietnamese learning mode is prepared but not playable yet.
+- Only English and Chinese quests are playable.
+- Switching language keeps shared player level, EXP, coins, streak, and badges.
 - There is no server sync yet.
 - There is no login or cloud save yet.
 - There is no leaderboard yet.

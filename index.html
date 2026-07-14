@@ -156,6 +156,20 @@
         <p id="streakMessage" class="streak-message">Your language journey starts today.</p>
       </section>
 
+      <section class="language-settings" aria-labelledby="languageSettingsTitle">
+        <div class="quest-section-header">
+          <div>
+            <p class="eyebrow">Language Mode</p>
+            <h3 id="languageSettingsTitle">Language Settings</h3>
+          </div>
+          <button id="changeLanguageButton" class="button button-secondary" type="button">Change Learning Language</button>
+        </div>
+        <div class="language-settings-grid">
+          <article class="info-card"><span>Native Language</span><strong id="languageNativeDisplay">Vietnamese 🇻🇳</strong></article>
+          <article class="info-card"><span>Learning</span><strong id="languageLearningDisplay">English 🇬🇧</strong></article>
+        </div>
+      </section>
+
       <div class="profile-grid">
         <article class="info-card"><span>Native Language</span><strong id="mainNativeLanguage">Vietnamese</strong></article>
         <article class="info-card"><span>Learning Language</span><strong id="mainLearningLanguage">English</strong></article>
@@ -202,6 +216,8 @@
           <div class="developer-actions">
             <button id="markQuestCompleteButton" class="button button-secondary" type="button">Mark Current Quest as Completed</button>
             <button id="clearCompletedQuestsButton" class="button button-quiet" type="button">Clear Completed Quests</button>
+            <button id="devSwitchEnglishButton" class="button button-quiet" type="button">Switch to English</button>
+            <button id="devSwitchChineseButton" class="button button-quiet" type="button">Switch to Chinese</button>
           </div>
         </details>
       </section>
@@ -223,6 +239,10 @@
           <article class="info-card"><span>Learned Words</span><strong id="summaryLearnedWords">0</strong></article>
           <article class="info-card"><span>Words Reviewed</span><strong id="summaryReviewedWords">0</strong></article>
           <article class="info-card"><span>Badges</span><strong id="summaryBadges">0 / 9</strong></article>
+        </div>
+        <div class="language-progress-panel">
+          <h4>Language Progress</h4>
+          <div id="languageProgressGrid" class="language-progress-grid"></div>
         </div>
       </section>
 
@@ -254,6 +274,21 @@
         <p id="rewardPopupVocabulary" class="quest-message"></p>
         <button id="closeRewardPopupButton" class="button button-primary" type="button">Return to Map</button>
       </div>
+    </section>
+
+    <section id="languageSwitchScreen" class="screen language-switch-screen hidden" aria-labelledby="languageSwitchTitle">
+      <header class="screen-header">
+        <div>
+          <p class="eyebrow">Language Mode</p>
+          <h2 id="languageSwitchTitle">Change Learning Language</h2>
+        </div>
+        <button id="cancelLanguageSwitchButton" class="button button-quiet" type="button">Cancel</button>
+      </header>
+
+      <p class="quest-message">Changing your learning language will switch your quest map and vocabulary view. Your existing progress will be kept.</p>
+      <p id="currentLanguageSwitchLabel" class="screen-status">Current language: English 🇬🇧</p>
+
+      <div id="languageSwitchOptions" class="language-switch-options"></div>
     </section>
 
     <section id="questScreen" class="screen quest-screen hidden" aria-labelledby="questScreenTitle">
@@ -322,6 +357,13 @@
       </header>
 
       <div class="vocabulary-toolbar" aria-label="Vocabulary filters">
+        <button class="button button-secondary vocabulary-language-button" data-language-filter="current" type="button">Current Language</button>
+        <button class="button button-quiet vocabulary-language-button" data-language-filter="en" type="button">English</button>
+        <button class="button button-quiet vocabulary-language-button" data-language-filter="zh" type="button">Chinese</button>
+        <button class="button button-quiet vocabulary-language-button" data-language-filter="all" type="button">All Learned Words</button>
+      </div>
+
+      <div class="vocabulary-toolbar" aria-label="Vocabulary review filters">
         <button class="button button-secondary vocabulary-filter-button" data-filter="all" type="button">Show All</button>
         <button class="button button-quiet vocabulary-filter-button" data-filter="favorites" type="button">Favorites</button>
         <button class="button button-quiet vocabulary-filter-button" data-filter="notReviewed" type="button">Not Reviewed</button>
@@ -384,6 +426,7 @@
     </section>
   </main>
 
+  <script src="data/languages.js"></script>
   <script src="data/quests.js"></script>
   <script src="script.js"></script>
 </body>

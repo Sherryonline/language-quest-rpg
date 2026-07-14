@@ -6,9 +6,15 @@ const screenIds = {
   character: "characterScreen",
   main: "mainGameScreen",
   quest: "questScreen",
-  vocabulary: "vocabularyScreen"
+  vocabulary: "vocabularyScreen",
+  languageSwitch: "languageSwitchScreen"
 };
 
+const fallbackLanguageConfig = {
+  vi: { code: "vi", label: "Vietnamese", nativeLabel: "Tiếng Việt", flag: "🇻🇳", direction: "ltr", learningAvailable: false },
+  en: { code: "en", label: "English", nativeLabel: "English", flag: "🇬🇧", direction: "ltr", learningAvailable: true },
+  zh: { code: "zh", label: "Chinese", nativeLabel: "中文", flag: "🇨🇳", direction: "ltr", showPinyin: true, learningAvailable: true }
+};
 const languageLabels = { vi: "Vietnamese", en: "English", zh: "Chinese" };
 const difficultyLabels = { beginner: "Beginner", elementary: "Elementary" };
 const avatarLabels = {
@@ -31,6 +37,7 @@ let activeQuest = null;
 let currentStepIndex = 0;
 let selectedAnswerState = null;
 let currentVocabularyFilter = "all";
+let currentVocabularyLanguageFilter = "current";
 let activeFlashcards = [];
 let currentFlashcardIndex = 0;
 let isFlashcardFlipped = false;
@@ -120,6 +127,59 @@ function normalizeLearnedWords(learnedWords, fallbackLanguage) {
   return normalizedWords;
 }
 
+function getLanguageConfig(languageCode) {
+  const configs = typeof languageConfig === "object" && languageConfig
+    ? languageConfig
+    : fallbackLanguageConfig;
+  return configs[languageCode] || configs.en || fallbackLanguageConfig.en;
+}
+
+function getLanguageLabel(languageCode) {
+  return getLanguageConfig(languageCode).label;
+}
+
+function formatLanguageDisplay(languageCode) {
+  const config = getLanguageConfig(languageCode);
+  return `${config.label} ${config.flag || ""}`.trim();
+}
+
+function getAvailableLearningLanguages() {
+  const configs = typeof languageConfig === "object" && languageConfig
+    ? languageConfig
+    : fallbackLanguageConfig;
+  return Object.values(configs).filter((config) => config.learningAvailable);
+}
+
+function isValidLearningLanguage(languageCode) {
+  return getAvailableLearningLanguages().some((config) => config.code === languageCode);
+}
+
+function getFirstQuestIdByLanguage(languageCode) {
+  const firstQuest = getQuestsByLanguage(languageCode)[0];
+  return firstQuest ? firstQuest.id : "";
+}
+
+function getLatestAvailableQuestIdByLanguage(languageCode) {
+  const quests = getQuestsByLanguage(languageCode);
+  const availableQuests = quests.filter((quest) => isQuestAvailable(quest, currentPlayer));
+  const latestQuest = availableQuests[availableQuests.length - 1] || quests[0];
+  return latestQuest ? latestQuest.id : "";
+}
+
+function isQuestLanguage(questId, languageCode) {
+  const quest = getQuestById(questId);
+  return Boolean(quest && quest.language === languageCode);
+}
+
+function getPlayerProgressByLanguage(languageCode) {
+  return {
+    language: languageCode,
+    completedQuests: getCompletedQuestCountByLanguage(languageCode),
+    totalQuests: getTotalQuestCountByLanguage(languageCode),
+    learnedWords: getLearnedWordsCountByLanguage(languageCode)
+  };
+}
+
 function getBadgeDefinitions() {
   return [
     {
@@ -202,10 +262,18 @@ function normalizePlayer(player) {
     return null;
   }
 
-  const learningLanguage = player.learningLanguage || "en";
+  const configs = typeof languageConfig === "object" && languageConfig
+    ? languageConfig
+    : fallbackLanguageConfig;
+  const nativeLanguage = configs[player.nativeLanguage] ? player.nativeLanguage : "vi";
+  const learningLanguage = isValidLearningLanguage(player.learningLanguage)
+    ? player.learningLanguage
+    : "en";
 
   return {
     ...player,
+    nativeLanguage,
+    learningLanguage,
     level: Math.max(Number.isFinite(Number(player.level)) ? Number(player.level) : 1, getLevelFromExp(player.exp)),
     exp: Number.isFinite(Number(player.exp)) ? Number(player.exp) : 0,
     coins: Number.isFinite(Number(player.coins)) ? Number(player.coins) : 0,
@@ -323,7 +391,7 @@ function updateDailyStreak() {
   let streak = Number(currentPlayer.streak || 0);
 
   if (!currentPlayer.lastPlayedDate) {
-    streak = 1;
+    streak = Math.max(1, streak);
   } else if (currentPlayer.lastPlayedDate === today) {
     return [];
   } else if (currentPlayer.lastPlayedDate === yesterday) {
@@ -593,6 +661,98 @@ function renderBadgesSection() {
   });
 }
 
+function renderLanguageSettings() {
+  if (!currentPlayer) {
+    return;
+  }
+
+  setText("languageNativeDisplay", formatLanguageDisplay(currentPlayer.nativeLanguage));
+  setText("languageLearningDisplay", formatLanguageDisplay(currentPlayer.learningLanguage));
+}
+
+function renderLanguageSwitchScreen() {
+  if (!currentPlayer) {
+    renderStartScreen();
+    return;
+  }
+
+  const options = document.getElementById("languageSwitchOptions");
+  options.replaceChildren();
+  setText("currentLanguageSwitchLabel", `Current language: ${formatLanguageDisplay(currentPlayer.learningLanguage)}`);
+
+  Object.values(typeof languageConfig === "object" && languageConfig ? languageConfig : fallbackLanguageConfig)
+    .forEach((config) => {
+      const button = document.createElement("button");
+      button.className = config.learningAvailable ? "button button-secondary" : "button button-quiet";
+      button.type = "button";
+      button.disabled = !config.learningAvailable || config.code === currentPlayer.learningLanguage;
+      button.textContent = config.learningAvailable
+        ? `Switch to ${formatLanguageDisplay(config.code)}`
+        : `${formatLanguageDisplay(config.code)} - Coming Soon`;
+
+      if (config.learningAvailable) {
+        button.addEventListener("click", () => switchLearningLanguage(config.code));
+      }
+
+      options.appendChild(button);
+    });
+
+  navigateTo("languageSwitch");
+}
+
+function switchLearningLanguage(languageCode) {
+  if (!currentPlayer || !isValidLearningLanguage(languageCode)) {
+    return;
+  }
+
+  const latestQuestId = getLatestAvailableQuestIdByLanguage(languageCode) || getFirstQuestIdByLanguage(languageCode);
+  currentPlayer = savePlayer({
+    ...currentPlayer,
+    learningLanguage: languageCode,
+    currentQuestId: isQuestLanguage(currentPlayer.currentQuestId, languageCode)
+      ? currentPlayer.currentQuestId
+      : latestQuestId
+  }) || currentPlayer;
+  currentVocabularyLanguageFilter = "current";
+  renderMainGameScreen();
+}
+
+function getCompletedQuestCountByLanguage(languageCode) {
+  return getQuestsByLanguage(languageCode)
+    .filter((quest) => currentPlayer.completedQuests.includes(quest.id))
+    .length;
+}
+
+function getTotalQuestCountByLanguage(languageCode) {
+  return getQuestsByLanguage(languageCode).length;
+}
+
+function getLearnedWordsCountByLanguage(languageCode) {
+  return currentPlayer && Array.isArray(currentPlayer.learnedWords)
+    ? currentPlayer.learnedWords.filter((word) => word.language === languageCode).length
+    : 0;
+}
+
+function renderLanguageProgressSummary() {
+  const grid = document.getElementById("languageProgressGrid");
+  grid.replaceChildren();
+
+  ["en", "zh"].forEach((languageCode) => {
+    const progress = getPlayerProgressByLanguage(languageCode);
+    const card = document.createElement("article");
+    const title = document.createElement("h4");
+    const quests = document.createElement("p");
+    const words = document.createElement("p");
+
+    card.className = "language-progress-card";
+    title.textContent = formatLanguageDisplay(languageCode);
+    quests.textContent = `Completed Quests: ${progress.completedQuests} / ${progress.totalQuests}`;
+    words.textContent = `Learned Words: ${progress.learnedWords}`;
+    card.append(title, quests, words);
+    grid.appendChild(card);
+  });
+}
+
 function resetGame() {
   const confirmed = window.confirm("Reset your Lingua Life RPG save? This cannot be undone.");
 
@@ -714,8 +874,8 @@ function renderMainGameScreen() {
   setText("welcomeMessage", `Welcome, ${player.name}!`);
   setText("mainAvatar", avatar.icon);
   setText("mainAvatarName", avatar.label);
-  setText("mainNativeLanguage", languageLabels[player.nativeLanguage] || player.nativeLanguage);
-  setText("mainLearningLanguage", languageLabels[player.learningLanguage] || player.learningLanguage);
+  setText("mainNativeLanguage", formatLanguageDisplay(player.nativeLanguage));
+  setText("mainLearningLanguage", formatLanguageDisplay(player.learningLanguage));
   setText("mainDifficulty", difficultyLabels[player.difficulty] || player.difficulty);
   setText("mainLearningGoal", learningGoalLabels[player.learningGoal] || player.learningGoal);
   setText("mainDailyGoal", `${player.dailyGoalMinutes} minutes/day`);
@@ -727,6 +887,8 @@ function renderMainGameScreen() {
   renderStreakInfo();
   renderAchievementSummary();
   renderBadgesSection();
+  renderLanguageSettings();
+  renderLanguageProgressSummary();
   renderDailyLifeTownMap();
   navigateTo("main");
 }
@@ -737,6 +899,12 @@ function renderDailyLifeTownMap() {
   const completedCount = quests.filter((quest) => isQuestCompleted(quest.id, currentPlayer)).length;
 
   questCards.replaceChildren();
+  if (!quests.length) {
+    setText("questProgress", "0 of 0 completed");
+    setText("questMessage", "No quests are available for this language yet.");
+    return;
+  }
+
   quests.forEach((quest) => {
     questCards.appendChild(renderQuestCard(quest));
   });
@@ -1124,6 +1292,7 @@ function openVocabularyBook() {
   currentStepIndex = 0;
   selectedAnswerState = null;
   currentVocabularyFilter = "all";
+  currentVocabularyLanguageFilter = "current";
   finishFlashcardReview(false);
   renderVocabularyBookScreen();
 }
@@ -1137,26 +1306,72 @@ function renderVocabularyBookScreen() {
   }
 
   currentPlayer = player;
-  const words = getLearnedWordsByLanguage(currentPlayer.learningLanguage);
-  const filteredWords = getFilteredVocabularyWords(words);
-  const favoriteCount = words.filter((item) => item.isFavorite).length;
-  const reviewedCount = words.filter((item) => Number(item.reviewCount) > 0).length;
+  const allWords = getAllLearnedWords();
+  const languageWords = getVocabularyByLanguageFilter(allWords, currentVocabularyLanguageFilter);
+  const filteredWords = getFilteredVocabularyWords(languageWords);
+  const favoriteCount = languageWords.filter((item) => item.isFavorite).length;
+  const reviewedCount = languageWords.filter((item) => Number(item.reviewCount) > 0).length;
 
-  setText("vocabularyLanguage", `Learning: ${languageLabels[currentPlayer.learningLanguage] || currentPlayer.learningLanguage}`);
-  setText("vocabularyTotal", words.length);
+  setText("vocabularyLanguage", `Showing: ${getVocabularyLanguageFilterLabel(currentVocabularyLanguageFilter)}`);
+  setText("vocabularyTotal", languageWords.length);
   setText("vocabularyFavorites", favoriteCount);
   setText("vocabularyReviewed", reviewedCount);
+  renderVocabularyLanguageFilter();
   updateVocabularyFilterButtons();
   renderVocabularyList(filteredWords);
   navigateTo("vocabulary");
 }
 
-function getLearnedWordsByLanguage(language) {
+function getAllLearnedWords() {
   return (currentPlayer && Array.isArray(currentPlayer.learnedWords)
     ? currentPlayer.learnedWords
     : [])
+    .slice()
+    .sort((first, second) => first.word.localeCompare(second.word));
+}
+
+function getLearnedWordsByLanguage(language) {
+  return getAllLearnedWords()
     .filter((item) => item.language === language)
     .sort((first, second) => first.word.localeCompare(second.word));
+}
+
+function setVocabularyLanguageFilter(languageCode) {
+  currentVocabularyLanguageFilter = languageCode;
+  finishFlashcardReview(false);
+  renderVocabularyBookScreen();
+}
+
+function getVocabularyByLanguageFilter(words, languageFilter) {
+  if (languageFilter === "all") {
+    return words;
+  }
+
+  if (languageFilter === "current") {
+    return words.filter((item) => item.language === currentPlayer.learningLanguage);
+  }
+
+  return words.filter((item) => item.language === languageFilter);
+}
+
+function renderVocabularyLanguageFilter() {
+  document.querySelectorAll(".vocabulary-language-button").forEach((button) => {
+    const isActive = button.dataset.languageFilter === currentVocabularyLanguageFilter;
+    button.classList.toggle("button-secondary", isActive);
+    button.classList.toggle("button-quiet", !isActive);
+  });
+}
+
+function getVocabularyLanguageFilterLabel(languageFilter) {
+  if (languageFilter === "all") {
+    return "All Learned Words";
+  }
+
+  if (languageFilter === "current") {
+    return `Current Language (${formatLanguageDisplay(currentPlayer.learningLanguage)})`;
+  }
+
+  return formatLanguageDisplay(languageFilter);
 }
 
 function getFilteredVocabularyWords(words) {
@@ -1287,7 +1502,7 @@ function getQuestTitle(questId) {
 }
 
 function startFlashcardReview() {
-  const words = getFilteredVocabularyWords(getLearnedWordsByLanguage(currentPlayer.learningLanguage));
+  const words = getFilteredVocabularyWords(getVocabularyByLanguageFilter(getAllLearnedWords(), currentVocabularyLanguageFilter));
 
   if (!words.length) {
     setText("vocabularyMessage", "No vocabulary available for this review.");
@@ -1561,6 +1776,8 @@ document.getElementById("characterBackButton").addEventListener("click", renderS
 document.getElementById("formBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("characterForm").addEventListener("submit", handleCharacterSubmit);
 document.getElementById("vocabularyBookButton").addEventListener("click", openVocabularyBook);
+document.getElementById("changeLanguageButton").addEventListener("click", renderLanguageSwitchScreen);
+document.getElementById("cancelLanguageSwitchButton").addEventListener("click", renderMainGameScreen);
 document.getElementById("mainBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
 document.getElementById("returnToMapButton").addEventListener("click", returnToMap);
@@ -1584,7 +1801,14 @@ document.querySelectorAll(".vocabulary-filter-button").forEach((button) => {
     renderVocabularyBookScreen();
   });
 });
+document.querySelectorAll(".vocabulary-language-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    setVocabularyLanguageFilter(button.dataset.languageFilter || "current");
+  });
+});
 document.getElementById("markQuestCompleteButton").addEventListener("click", markCurrentQuestCompletedForTest);
 document.getElementById("clearCompletedQuestsButton").addEventListener("click", clearCompletedQuestsForTest);
+document.getElementById("devSwitchEnglishButton").addEventListener("click", () => switchLearningLanguage("en"));
+document.getElementById("devSwitchChineseButton").addEventListener("click", () => switchLearningLanguage("zh"));
 
 renderStartScreen();
