@@ -5,7 +5,8 @@ const screenIds = {
   start: "startScreen",
   character: "characterScreen",
   main: "mainGameScreen",
-  quest: "questScreen"
+  quest: "questScreen",
+  vocabulary: "vocabularyScreen"
 };
 
 const languageLabels = { vi: "Vietnamese", en: "English", zh: "Chinese" };
@@ -28,6 +29,95 @@ let currentPlayer = null;
 let activeQuest = null;
 let currentStepIndex = 0;
 let selectedAnswerState = null;
+let currentVocabularyFilter = "all";
+let activeFlashcards = [];
+let currentFlashcardIndex = 0;
+let isFlashcardFlipped = false;
+let flashcardReviewedCount = 0;
+
+function normalizeVocabularyId(word, language) {
+  const rawWord = String(word || "");
+  let normalizedWord = rawWord
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!normalizedWord) {
+    normalizedWord = Array.from(rawWord)
+      .map((character) => character.codePointAt(0).toString(16))
+      .join("_");
+  }
+
+  return `${language}_${normalizedWord || "word"}`;
+}
+
+function normalizeLearnedWord(wordItem, fallbackLanguage) {
+  if (!wordItem) {
+    return null;
+  }
+
+  if (typeof wordItem === "string") {
+    return {
+      id: normalizeVocabularyId(wordItem, fallbackLanguage),
+      questId: "",
+      language: fallbackLanguage,
+      word: wordItem,
+      meaning: "",
+      example: "",
+      reviewCount: 0,
+      lastReviewedAt: "",
+      isFavorite: false
+    };
+  }
+
+  if (typeof wordItem !== "object" || !wordItem.word) {
+    return null;
+  }
+
+  const language = wordItem.language || fallbackLanguage;
+
+  return {
+    id: wordItem.id || normalizeVocabularyId(wordItem.word, language),
+    questId: wordItem.questId || "",
+    language,
+    word: wordItem.word,
+    pinyin: wordItem.pinyin || "",
+    meaning: wordItem.meaning || "",
+    example: wordItem.example || "",
+    reviewCount: Number.isFinite(Number(wordItem.reviewCount)) ? Number(wordItem.reviewCount) : 0,
+    lastReviewedAt: wordItem.lastReviewedAt || "",
+    isFavorite: Boolean(wordItem.isFavorite)
+  };
+}
+
+function normalizeLearnedWords(learnedWords, fallbackLanguage) {
+  if (!Array.isArray(learnedWords)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalizedWords = [];
+
+  learnedWords.forEach((wordItem) => {
+    const normalizedWord = normalizeLearnedWord(wordItem, fallbackLanguage);
+
+    if (!normalizedWord) {
+      return;
+    }
+
+    const duplicateKey = `${normalizedWord.language}::${normalizedWord.word}`;
+    if (seen.has(duplicateKey)) {
+      return;
+    }
+
+    seen.add(duplicateKey);
+    normalizedWords.push(normalizedWord);
+  });
+
+  return normalizedWords;
+}
 
 function normalizePlayer(player) {
   if (!player || typeof player !== "object") {
@@ -44,7 +134,7 @@ function normalizePlayer(player) {
     currentMap: player.currentMap || "daily_life_town",
     currentQuestId: player.currentQuestId || (learningLanguage === "zh" ? "zh_greeting_001" : "greeting_001"),
     completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
-    learnedWords: Array.isArray(player.learnedWords) ? player.learnedWords : [],
+    learnedWords: normalizeLearnedWords(player.learnedWords, learningLanguage),
     badges: Array.isArray(player.badges) ? player.badges : [],
     claimedQuestRewards: Array.isArray(player.claimedQuestRewards) ? player.claimedQuestRewards : [],
     streak: Number.isFinite(Number(player.streak)) ? Number(player.streak) : 0
@@ -444,6 +534,7 @@ function completeQuest() {
   }
 
   const rewardAlreadyClaimed = hasRewardAlreadyClaimed(activeQuest.id);
+  const addedVocabularyCount = addVocabularyFromQuest(activeQuest);
   const completionResult = addCompletedQuest(activeQuest.id);
   currentPlayer = completionResult.player;
 
@@ -460,6 +551,9 @@ function completeQuest() {
   setText("questCompleteMessage", rewardAlreadyClaimed
     ? "Quest replay completed. Rewards were already claimed."
     : "Quest completed! Rewards claimed.");
+  document.getElementById("questCompleteMessage").textContent += addedVocabularyCount > 0
+    ? " These words were added to your Vocabulary Book."
+    : " These words are already in your Vocabulary Book.";
   setText("questCompleteExp", `+${activeQuest.rewardExp} EXP`);
   setText("questCompleteCoins", `+${activeQuest.rewardCoins} Coins`);
   setText("questPlayerExp", currentPlayer.exp);
@@ -501,26 +595,16 @@ function applyQuestReward(quest) {
   const claimedQuestRewards = Array.isArray(currentPlayer.claimedQuestRewards)
     ? [...currentPlayer.claimedQuestRewards]
     : [];
-  const learnedWords = Array.isArray(currentPlayer.learnedWords)
-    ? [...currentPlayer.learnedWords]
-    : [];
 
   if (!claimedQuestRewards.includes(quest.id)) {
     claimedQuestRewards.push(quest.id);
   }
 
-  (quest.vocabulary || []).forEach((item) => {
-    if (item.word && !learnedWords.includes(item.word)) {
-      learnedWords.push(item.word);
-    }
-  });
-
   return savePlayer({
     ...currentPlayer,
     exp: Number(currentPlayer.exp || 0) + Number(quest.rewardExp || 0),
     coins: Number(currentPlayer.coins || 0) + Number(quest.rewardCoins || 0),
-    claimedQuestRewards,
-    learnedWords
+    claimedQuestRewards
   }) || currentPlayer;
 }
 
@@ -532,10 +616,334 @@ function hasRewardAlreadyClaimed(questId) {
   );
 }
 
+function addVocabularyFromQuest(quest) {
+  if (!quest || !Array.isArray(quest.vocabulary) || !currentPlayer) {
+    return 0;
+  }
+
+  let addedCount = 0;
+
+  quest.vocabulary.forEach((wordItem) => {
+    if (addLearnedWord(wordItem, quest)) {
+      addedCount += 1;
+    }
+  });
+
+  return addedCount;
+}
+
+function addLearnedWord(wordItem, quest) {
+  if (!wordItem || !wordItem.word || !quest || isWordAlreadyLearned(wordItem.word, quest.language)) {
+    return false;
+  }
+
+  const learnedWords = Array.isArray(currentPlayer.learnedWords)
+    ? [...currentPlayer.learnedWords]
+    : [];
+  const learnedWord = normalizeLearnedWord({
+    ...wordItem,
+    id: normalizeVocabularyId(wordItem.word, quest.language),
+    questId: quest.id,
+    language: quest.language,
+    reviewCount: 0,
+    lastReviewedAt: "",
+    isFavorite: false
+  }, quest.language);
+
+  learnedWords.push(learnedWord);
+  currentPlayer = savePlayer({ ...currentPlayer, learnedWords }) || currentPlayer;
+  return true;
+}
+
+function isWordAlreadyLearned(word, language) {
+  return Boolean(
+    currentPlayer &&
+    Array.isArray(currentPlayer.learnedWords) &&
+    currentPlayer.learnedWords.some((item) => item.language === language && item.word === word)
+  );
+}
+
+function openVocabularyBook() {
+  activeQuest = null;
+  currentStepIndex = 0;
+  selectedAnswerState = null;
+  currentVocabularyFilter = "all";
+  finishFlashcardReview(false);
+  renderVocabularyBookScreen();
+}
+
+function renderVocabularyBookScreen() {
+  const player = currentPlayer || loadPlayer();
+
+  if (!player) {
+    renderStartScreen();
+    return;
+  }
+
+  currentPlayer = player;
+  const words = getLearnedWordsByLanguage(currentPlayer.learningLanguage);
+  const filteredWords = getFilteredVocabularyWords(words);
+  const favoriteCount = words.filter((item) => item.isFavorite).length;
+  const reviewedCount = words.filter((item) => Number(item.reviewCount) > 0).length;
+
+  setText("vocabularyLanguage", `Learning: ${languageLabels[currentPlayer.learningLanguage] || currentPlayer.learningLanguage}`);
+  setText("vocabularyTotal", words.length);
+  setText("vocabularyFavorites", favoriteCount);
+  setText("vocabularyReviewed", reviewedCount);
+  updateVocabularyFilterButtons();
+  renderVocabularyList(filteredWords);
+  navigateTo("vocabulary");
+}
+
+function getLearnedWordsByLanguage(language) {
+  return (currentPlayer && Array.isArray(currentPlayer.learnedWords)
+    ? currentPlayer.learnedWords
+    : [])
+    .filter((item) => item.language === language)
+    .sort((first, second) => first.word.localeCompare(second.word));
+}
+
+function getFilteredVocabularyWords(words) {
+  if (currentVocabularyFilter === "favorites") {
+    return words.filter((item) => item.isFavorite);
+  }
+
+  if (currentVocabularyFilter === "notReviewed") {
+    return words.filter((item) => Number(item.reviewCount) === 0);
+  }
+
+  if (currentVocabularyFilter === "reviewed") {
+    return words.filter((item) => Number(item.reviewCount) > 0);
+  }
+
+  return words;
+}
+
+function renderVocabularyList(words) {
+  const vocabularyList = document.getElementById("vocabularyList");
+  vocabularyList.replaceChildren();
+
+  if (!words.length) {
+    setText("vocabularyMessage", "No vocabulary learned yet. Complete quests to add words to your Vocabulary Book.");
+    return;
+  }
+
+  setText("vocabularyMessage", `${words.length} word${words.length === 1 ? "" : "s"} shown.`);
+  words.forEach((wordItem) => {
+    vocabularyList.appendChild(renderVocabularyCard(wordItem));
+  });
+}
+
+function renderVocabularyCard(wordItem) {
+  const card = document.createElement("article");
+  const title = document.createElement("h3");
+  const pinyin = document.createElement("p");
+  const meaning = document.createElement("p");
+  const example = document.createElement("p");
+  const quest = document.createElement("p");
+  const review = document.createElement("p");
+  const actions = document.createElement("div");
+  const favoriteButton = document.createElement("button");
+  const reviewedButton = document.createElement("button");
+
+  card.className = `vocabulary-card${wordItem.isFavorite ? " vocabulary-card-favorite" : ""}`;
+  actions.className = "vocabulary-card-actions";
+  title.textContent = wordItem.word;
+  meaning.innerHTML = `<strong>Meaning:</strong> ${wordItem.meaning || "No meaning available."}`;
+  example.innerHTML = `<strong>Example:</strong> ${wordItem.example || "No example available."}`;
+  quest.innerHTML = `<strong>Quest:</strong> ${getQuestTitle(wordItem.questId)}`;
+  review.innerHTML = `<strong>Reviewed:</strong> ${wordItem.reviewCount} ${wordItem.reviewCount === 1 ? "time" : "times"}`;
+
+  if (wordItem.pinyin) {
+    pinyin.innerHTML = `<strong>Pinyin:</strong> ${wordItem.pinyin}`;
+    card.append(title, pinyin, meaning, example, quest, review);
+  } else {
+    card.append(title, meaning, example, quest, review);
+  }
+
+  favoriteButton.className = wordItem.isFavorite
+    ? "button button-primary"
+    : "button button-quiet";
+  favoriteButton.type = "button";
+  favoriteButton.textContent = wordItem.isFavorite ? "Favorite" : "Add Favorite";
+  favoriteButton.addEventListener("click", () => toggleFavoriteWord(wordItem.id));
+
+  reviewedButton.className = "button button-secondary";
+  reviewedButton.type = "button";
+  reviewedButton.textContent = "Mark Reviewed";
+  reviewedButton.addEventListener("click", () => markWordReviewed(wordItem.id));
+
+  actions.append(favoriteButton, reviewedButton);
+  card.appendChild(actions);
+  return card;
+}
+
+function toggleFavoriteWord(wordId) {
+  updateLearnedWord(wordId, (wordItem) => ({
+    ...wordItem,
+    isFavorite: !wordItem.isFavorite
+  }));
+  renderVocabularyBookScreen();
+}
+
+function markWordReviewed(wordId) {
+  updateLearnedWord(wordId, (wordItem) => ({
+    ...wordItem,
+    reviewCount: Number(wordItem.reviewCount || 0) + 1,
+    lastReviewedAt: new Date().toISOString()
+  }));
+  renderVocabularyBookScreen();
+}
+
+function clearVocabularyReviewFilters() {
+  currentVocabularyFilter = "all";
+  renderVocabularyBookScreen();
+}
+
+function updateLearnedWord(wordId, updater) {
+  if (!currentPlayer || !Array.isArray(currentPlayer.learnedWords)) {
+    return;
+  }
+
+  const learnedWords = currentPlayer.learnedWords.map((wordItem) => {
+    if (wordItem.id !== wordId) {
+      return wordItem;
+    }
+
+    return normalizeLearnedWord(updater(wordItem), wordItem.language);
+  });
+
+  currentPlayer = savePlayer({ ...currentPlayer, learnedWords }) || currentPlayer;
+}
+
+function updateVocabularyFilterButtons() {
+  document.querySelectorAll(".vocabulary-filter-button").forEach((button) => {
+    const isActive = button.dataset.filter === currentVocabularyFilter;
+    button.classList.toggle("button-secondary", isActive);
+    button.classList.toggle("button-quiet", !isActive);
+  });
+}
+
+function getQuestTitle(questId) {
+  const quest = getQuestById(questId);
+  return quest ? quest.title : (questId || "Unknown Quest");
+}
+
+function startFlashcardReview() {
+  const words = getFilteredVocabularyWords(getLearnedWordsByLanguage(currentPlayer.learningLanguage));
+
+  if (!words.length) {
+    setText("vocabularyMessage", "No vocabulary available for this review.");
+    return;
+  }
+
+  activeFlashcards = words;
+  currentFlashcardIndex = 0;
+  isFlashcardFlipped = false;
+  flashcardReviewedCount = 0;
+  document.getElementById("flashcardCompletePanel").classList.add("hidden");
+  document.getElementById("flashcardPanel").classList.remove("hidden");
+  renderFlashcard();
+}
+
+function renderFlashcard() {
+  const wordItem = activeFlashcards[currentFlashcardIndex];
+
+  if (!wordItem) {
+    finishFlashcardReview(true);
+    return;
+  }
+
+  setText("flashcardProgress", `Card ${currentFlashcardIndex + 1} of ${activeFlashcards.length}`);
+  setText("flashcardSideLabel", isFlashcardFlipped ? "Back" : "Front");
+  setText("flashcardWord", wordItem.word);
+  setText("flashcardPinyin", wordItem.pinyin || "");
+  setText("flashcardMeaning", wordItem.meaning || "No meaning available.");
+  setText("flashcardExample", wordItem.example || "No example available.");
+  setText("flashcardQuest", getQuestTitle(wordItem.questId));
+  setText("flashcardMessage", "");
+
+  document.getElementById("flashcardBackContent").classList.toggle("hidden", !isFlashcardFlipped);
+  document.getElementById("flipFlashcardButton").classList.toggle("hidden", isFlashcardFlipped);
+  document.getElementById("rememberFlashcardButton").classList.toggle("hidden", !isFlashcardFlipped);
+  document.getElementById("needReviewFlashcardButton").classList.toggle("hidden", !isFlashcardFlipped);
+  document.getElementById("previousFlashcardButton").disabled = currentFlashcardIndex === 0;
+  document.getElementById("nextFlashcardButton").disabled = currentFlashcardIndex >= activeFlashcards.length - 1;
+}
+
+function flipFlashcard() {
+  isFlashcardFlipped = true;
+  renderFlashcard();
+}
+
+function nextFlashcard() {
+  if (currentFlashcardIndex >= activeFlashcards.length - 1) {
+    finishFlashcardReview(true);
+    return;
+  }
+
+  currentFlashcardIndex += 1;
+  isFlashcardFlipped = false;
+  renderFlashcard();
+}
+
+function previousFlashcard() {
+  if (currentFlashcardIndex === 0) {
+    return;
+  }
+
+  currentFlashcardIndex -= 1;
+  isFlashcardFlipped = false;
+  renderFlashcard();
+}
+
+function finishFlashcardReview(showComplete = true) {
+  document.getElementById("flashcardPanel").classList.add("hidden");
+  document.getElementById("flashcardCompletePanel").classList.toggle("hidden", !showComplete);
+  setText("flashcardReviewedCount", flashcardReviewedCount);
+
+  if (showComplete) {
+    renderVocabularyBookScreen();
+    document.getElementById("flashcardCompletePanel").classList.remove("hidden");
+  }
+}
+
+function returnToVocabularyBookFromReview() {
+  document.getElementById("flashcardCompletePanel").classList.add("hidden");
+  document.getElementById("flashcardPanel").classList.add("hidden");
+  renderVocabularyBookScreen();
+}
+
+function rememberFlashcard() {
+  const wordItem = activeFlashcards[currentFlashcardIndex];
+
+  if (!wordItem) {
+    finishFlashcardReview(true);
+    return;
+  }
+
+  updateLearnedWord(wordItem.id, (item) => ({
+    ...item,
+    reviewCount: Number(item.reviewCount || 0) + 1,
+    lastReviewedAt: new Date().toISOString()
+  }));
+  flashcardReviewedCount += 1;
+  nextFlashcard();
+}
+
+function needReviewFlashcard() {
+  setText("flashcardMessage", "No problem. You can review it again later.");
+  nextFlashcard();
+}
+
 function returnToMap() {
   activeQuest = null;
   currentStepIndex = 0;
   selectedAnswerState = null;
+  activeFlashcards = [];
+  currentFlashcardIndex = 0;
+  isFlashcardFlipped = false;
+  flashcardReviewedCount = 0;
   renderMainGameScreen();
 }
 
@@ -694,10 +1102,29 @@ document.getElementById("startResetButton").addEventListener("click", resetGame)
 document.getElementById("characterBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("formBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("characterForm").addEventListener("submit", handleCharacterSubmit);
+document.getElementById("vocabularyBookButton").addEventListener("click", openVocabularyBook);
 document.getElementById("mainBackButton").addEventListener("click", renderStartScreen);
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
 document.getElementById("returnToMapButton").addEventListener("click", returnToMap);
 document.getElementById("returnToMapCompleteButton").addEventListener("click", returnToMap);
+document.getElementById("returnToMapFromVocabularyButton").addEventListener("click", returnToMap);
+document.getElementById("returnToMapFromReviewButton").addEventListener("click", returnToMap);
+document.getElementById("startFlashcardButton").addEventListener("click", startFlashcardReview);
+document.getElementById("clearVocabularyFiltersButton").addEventListener("click", clearVocabularyReviewFilters);
+document.getElementById("backToVocabularyButton").addEventListener("click", returnToVocabularyBookFromReview);
+document.getElementById("flipFlashcardButton").addEventListener("click", flipFlashcard);
+document.getElementById("rememberFlashcardButton").addEventListener("click", rememberFlashcard);
+document.getElementById("needReviewFlashcardButton").addEventListener("click", needReviewFlashcard);
+document.getElementById("previousFlashcardButton").addEventListener("click", previousFlashcard);
+document.getElementById("nextFlashcardButton").addEventListener("click", nextFlashcard);
+document.getElementById("finishFlashcardButton").addEventListener("click", () => finishFlashcardReview(true));
+document.querySelectorAll(".vocabulary-filter-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    currentVocabularyFilter = button.dataset.filter || "all";
+    finishFlashcardReview(false);
+    renderVocabularyBookScreen();
+  });
+});
 document.getElementById("markQuestCompleteButton").addEventListener("click", markCurrentQuestCompletedForTest);
 document.getElementById("clearCompletedQuestsButton").addEventListener("click", clearCompletedQuestsForTest);
 

@@ -45,6 +45,20 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 - English vocabulary includes word, Vietnamese meaning, and example sentence
 - Sequential quest unlock chain for both English and Chinese paths
 
+### Sprint 5 - Vocabulary Book
+
+- Vocabulary Book button on the Main Game Screen
+- Learned words saved from completed quests into `player.learnedWords`
+- Duplicate vocabulary prevention by language and word
+- Vocabulary cards with word, meaning, example, source quest, and review count
+- Chinese vocabulary cards include pinyin when available
+- Filters for all words, favorites, not reviewed, and reviewed words
+- Favorite toggle for learned words
+- Mark Reviewed action with review count and last reviewed timestamp
+- Simple flashcard review mode with front/back cards
+- Flashcard review supports I Remember and Need Review outcomes
+- Backward-compatible migration for older save data
+
 ## Playable quests
 
 English:
@@ -82,6 +96,16 @@ Chinese:
 
 Quests unlock in order for the selected learning language only. Completing Quest 1 unlocks Quest 2, completing Quest 2 unlocks Quest 3, and so on until all five Daily Life Town quests are complete. Replaying a completed quest does not add duplicate EXP or coins.
 
+## Vocabulary Book
+
+Completing a quest adds that quest's vocabulary to the player's Vocabulary Book. Each learned word stores its source quest, language, word, optional pinyin, Vietnamese meaning, example sentence, review count, last reviewed date, and favorite state.
+
+Replaying a quest does not duplicate vocabulary. Existing review counts, favorite state, and last reviewed dates are preserved.
+
+## Flashcard review
+
+Flashcard Review uses the current Vocabulary Book filter. The front shows the word, and Chinese cards also show pinyin when available. The back shows meaning, example sentence, and source quest. Choosing I Remember increases review count and updates the last reviewed date. Choosing Need Review moves on without adding review credit.
+
 ## Run locally
 
 1. Open the `language-quest-rpg` folder in VS Code.
@@ -104,13 +128,15 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 
 - Only dialogue and multiple-choice gameplay are supported.
 - Quest progress inside a quest is not saved on browser refresh yet.
-- Vocabulary is shown on quest completion, but the full Vocabulary Book will be added in a later sprint.
+- Vocabulary review does not give EXP or coins yet.
+- There is no spaced repetition algorithm yet.
+- There is no pronunciation audio yet.
 - Developer test tools are temporary and remain inside a collapsible section.
 - Data is saved only in the current browser's localStorage.
 - There is no voice recognition yet.
 - There is no AI NPC yet.
-- There is no backend, login, database, or leaderboard yet.
-- Battles, full vocabulary books, and full map movement are not implemented.
+- There is no backend, login, account sync, database, or leaderboard yet.
+- Battles and full map movement are not implemented.
 
 ## Project structure
 

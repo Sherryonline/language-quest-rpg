@@ -196,6 +196,7 @@
       </section>
 
       <div class="main-actions">
+        <button id="vocabularyBookButton" class="button button-primary" type="button">Vocabulary Book</button>
         <button id="mainBackButton" class="button button-secondary" type="button">Back to Start</button>
         <button id="mainResetButton" class="button button-danger" type="button">Reset Game</button>
       </div>
@@ -249,6 +250,82 @@
 
       <div class="quest-screen-actions">
         <button id="returnToMapButton" class="button button-secondary" type="button">Back to Map</button>
+      </div>
+    </section>
+
+    <section id="vocabularyScreen" class="screen vocabulary-screen hidden" aria-labelledby="vocabularyTitle">
+      <header class="vocabulary-header">
+        <div>
+          <p class="eyebrow">Study Journal</p>
+          <h2 id="vocabularyTitle">Vocabulary Book</h2>
+          <p id="vocabularyLanguage">Learning: English</p>
+        </div>
+        <div class="vocabulary-stats">
+          <span>Total Words: <strong id="vocabularyTotal">0</strong></span>
+          <span>Favorites: <strong id="vocabularyFavorites">0</strong></span>
+          <span>Reviewed: <strong id="vocabularyReviewed">0</strong></span>
+        </div>
+      </header>
+
+      <div class="vocabulary-toolbar" aria-label="Vocabulary filters">
+        <button class="button button-secondary vocabulary-filter-button" data-filter="all" type="button">Show All</button>
+        <button class="button button-quiet vocabulary-filter-button" data-filter="favorites" type="button">Favorites</button>
+        <button class="button button-quiet vocabulary-filter-button" data-filter="notReviewed" type="button">Not Reviewed</button>
+        <button class="button button-quiet vocabulary-filter-button" data-filter="reviewed" type="button">Reviewed</button>
+      </div>
+
+      <p id="vocabularyMessage" class="quest-message" aria-live="polite"></p>
+      <div id="vocabularyList" class="vocabulary-list"></div>
+
+      <section id="flashcardPanel" class="flashcard-panel hidden" aria-labelledby="flashcardTitle">
+        <div class="flashcard-header">
+          <div>
+            <p class="eyebrow">Flashcard Review</p>
+            <h3 id="flashcardTitle">Flashcard Review</h3>
+          </div>
+          <span id="flashcardProgress">Card 1 of 1</span>
+        </div>
+
+        <article id="flashcardCard" class="flashcard-card">
+          <p id="flashcardSideLabel" class="eyebrow">Front</p>
+          <h3 id="flashcardWord">Word</h3>
+          <p id="flashcardPinyin"></p>
+          <div id="flashcardBackContent" class="flashcard-back-content hidden">
+            <p><strong>Meaning:</strong> <span id="flashcardMeaning">Meaning</span></p>
+            <p><strong>Example:</strong> <span id="flashcardExample">Example</span></p>
+            <p><strong>Quest:</strong> <span id="flashcardQuest">Quest</span></p>
+          </div>
+        </article>
+
+        <p id="flashcardMessage" class="screen-status" aria-live="polite"></p>
+
+        <div id="flashcardActions" class="flashcard-actions">
+          <button id="flipFlashcardButton" class="button button-primary" type="button">Show Meaning</button>
+          <button id="rememberFlashcardButton" class="button button-primary hidden" type="button">I Remember</button>
+          <button id="needReviewFlashcardButton" class="button button-secondary hidden" type="button">Need Review</button>
+        </div>
+
+        <div class="flashcard-nav">
+          <button id="previousFlashcardButton" class="button button-quiet" type="button">Previous</button>
+          <button id="nextFlashcardButton" class="button button-quiet" type="button">Next</button>
+          <button id="finishFlashcardButton" class="button button-secondary" type="button">Finish Review</button>
+        </div>
+      </section>
+
+      <section id="flashcardCompletePanel" class="flashcard-complete-panel hidden">
+        <p class="eyebrow">Review Completed</p>
+        <h3>Review completed!</h3>
+        <p>Words reviewed: <strong id="flashcardReviewedCount">0</strong></p>
+        <div class="vocabulary-actions">
+          <button id="backToVocabularyButton" class="button button-primary" type="button">Back to Vocabulary Book</button>
+          <button id="returnToMapFromReviewButton" class="button button-secondary" type="button">Return to Map</button>
+        </div>
+      </section>
+
+      <div class="vocabulary-actions">
+        <button id="startFlashcardButton" class="button button-primary" type="button">Start Flashcard Review</button>
+        <button id="clearVocabularyFiltersButton" class="button button-quiet" type="button">Show All</button>
+        <button id="returnToMapFromVocabularyButton" class="button button-secondary" type="button">Back to Map</button>
       </div>
     </section>
   </main>
