@@ -145,6 +145,17 @@
         </div>
       </header>
 
+      <section class="level-progress-section" aria-labelledby="levelProgressTitle">
+        <div class="level-progress-copy">
+          <h3 id="levelProgressTitle">Level Progress</h3>
+          <p id="levelProgressText">EXP: 0 / 100</p>
+        </div>
+        <div class="level-progress-track" aria-hidden="true">
+          <div id="levelProgressFill" class="level-progress-fill"></div>
+        </div>
+        <p id="streakMessage" class="streak-message">Your language journey starts today.</p>
+      </section>
+
       <div class="profile-grid">
         <article class="info-card"><span>Native Language</span><strong id="mainNativeLanguage">Vietnamese</strong></article>
         <article class="info-card"><span>Learning Language</span><strong id="mainLearningLanguage">English</strong></article>
@@ -195,10 +206,53 @@
         </details>
       </section>
 
+      <section class="achievement-summary" aria-labelledby="achievementTitle">
+        <div class="quest-section-header">
+          <div>
+            <p class="eyebrow">Progress</p>
+            <h3 id="achievementTitle">Achievements</h3>
+          </div>
+          <p id="achievementBadgeCount">Badges: 0 / 9</p>
+        </div>
+        <div class="achievement-grid">
+          <article class="info-card"><span>Current Level</span><strong id="summaryLevel">1</strong></article>
+          <article class="info-card"><span>Total EXP</span><strong id="summaryExp">0</strong></article>
+          <article class="info-card"><span>Total Coins</span><strong id="summaryCoins">0</strong></article>
+          <article class="info-card"><span>Current Streak</span><strong id="summaryStreak">0 days</strong></article>
+          <article class="info-card"><span>Completed Quests</span><strong id="summaryCompletedQuests">0</strong></article>
+          <article class="info-card"><span>Learned Words</span><strong id="summaryLearnedWords">0</strong></article>
+          <article class="info-card"><span>Words Reviewed</span><strong id="summaryReviewedWords">0</strong></article>
+          <article class="info-card"><span>Badges</span><strong id="summaryBadges">0 / 9</strong></article>
+        </div>
+      </section>
+
+      <section class="badges-section" aria-labelledby="badgesTitle">
+        <div class="quest-section-header">
+          <div>
+            <p class="eyebrow">Badge Case</p>
+            <h3 id="badgesTitle">Badges</h3>
+          </div>
+        </div>
+        <div id="badgesGrid" class="badges-grid"></div>
+      </section>
+
       <div class="main-actions">
         <button id="vocabularyBookButton" class="button button-primary" type="button">Vocabulary Book</button>
         <button id="mainBackButton" class="button button-secondary" type="button">Back to Start</button>
         <button id="mainResetButton" class="button button-danger" type="button">Reset Game</button>
+      </div>
+    </section>
+
+    <section id="rewardPopup" class="reward-popup hidden" aria-labelledby="rewardPopupTitle" role="dialog" aria-modal="true">
+      <div class="reward-popup-card">
+        <p class="eyebrow">Quest Reward</p>
+        <h2 id="rewardPopupTitle">Quest Completed!</h2>
+        <p id="rewardPopupQuestTitle">Quest title</p>
+        <div id="rewardPopupRewards" class="quest-complete-rewards"></div>
+        <div id="rewardPopupLevel" class="reward-popup-section"></div>
+        <div id="rewardPopupBadges" class="reward-popup-section"></div>
+        <p id="rewardPopupVocabulary" class="quest-message"></p>
+        <button id="closeRewardPopupButton" class="button button-primary" type="button">Return to Map</button>
       </div>
     </section>
 

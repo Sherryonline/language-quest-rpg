@@ -24,6 +24,7 @@ const learningGoalLabels = {
   culture: "Culture",
   all_purpose: "All Purpose"
 };
+const levelThresholds = [0, 100, 250, 500, 850, 1300, 1900, 2600, 3500, 4600];
 
 let currentPlayer = null;
 let activeQuest = null;
@@ -119,6 +120,83 @@ function normalizeLearnedWords(learnedWords, fallbackLanguage) {
   return normalizedWords;
 }
 
+function getBadgeDefinitions() {
+  return [
+    {
+      id: "first_quest",
+      title: "First Step",
+      description: "Complete your first quest.",
+      icon: "🌟",
+      conditionType: "completedQuestCount",
+      conditionValue: 1
+    },
+    {
+      id: "daily_learner",
+      title: "Daily Learner",
+      description: "Reach a 3-day learning streak.",
+      icon: "🔥",
+      conditionType: "streak",
+      conditionValue: 3
+    },
+    {
+      id: "five_day_hero",
+      title: "5-Day Hero",
+      description: "Reach a 5-day learning streak.",
+      icon: "🏆",
+      conditionType: "streak",
+      conditionValue: 5
+    },
+    {
+      id: "vocabulary_collector",
+      title: "Vocabulary Collector",
+      description: "Learn 10 words.",
+      icon: "📚",
+      conditionType: "learnedWordsCount",
+      conditionValue: 10
+    },
+    {
+      id: "flashcard_starter",
+      title: "Flashcard Starter",
+      description: "Review 5 words total.",
+      icon: "🧠",
+      conditionType: "reviewCount",
+      conditionValue: 5
+    },
+    {
+      id: "english_beginner",
+      title: "English Beginner",
+      description: "Complete all 5 English MVP quests.",
+      icon: "🇬🇧",
+      conditionType: "completedQuestSet",
+      conditionValue: ["greeting_001", "coffee_001", "food_001", "direction_001", "introduce_001"]
+    },
+    {
+      id: "chinese_beginner",
+      title: "Chinese Beginner",
+      description: "Complete all 5 Chinese MVP quests.",
+      icon: "🇨🇳",
+      conditionType: "completedQuestSet",
+      conditionValue: ["zh_greeting_001", "zh_coffee_001", "zh_food_001", "zh_direction_001", "zh_introduce_001"]
+    },
+    {
+      id: "level_2_adventurer",
+      title: "Level 2 Adventurer",
+      description: "Reach Level 2.",
+      icon: "⚔️",
+      conditionType: "level",
+      conditionValue: 2
+    },
+    {
+      id: "level_5_scholar",
+      title: "Level 5 Scholar",
+      description: "Reach Level 5.",
+      icon: "🎓",
+      conditionType: "level",
+      conditionValue: 5
+    }
+  ];
+}
+
 function normalizePlayer(player) {
   if (!player || typeof player !== "object") {
     return null;
@@ -128,7 +206,7 @@ function normalizePlayer(player) {
 
   return {
     ...player,
-    level: Number.isFinite(Number(player.level)) ? Number(player.level) : 1,
+    level: Math.max(Number.isFinite(Number(player.level)) ? Number(player.level) : 1, getLevelFromExp(player.exp)),
     exp: Number.isFinite(Number(player.exp)) ? Number(player.exp) : 0,
     coins: Number.isFinite(Number(player.coins)) ? Number(player.coins) : 0,
     currentMap: player.currentMap || "daily_life_town",
@@ -136,6 +214,7 @@ function normalizePlayer(player) {
     completedQuests: Array.isArray(player.completedQuests) ? player.completedQuests : [],
     learnedWords: normalizeLearnedWords(player.learnedWords, learningLanguage),
     badges: Array.isArray(player.badges) ? player.badges : [],
+    rewardHistory: Array.isArray(player.rewardHistory) ? player.rewardHistory : [],
     claimedQuestRewards: Array.isArray(player.claimedQuestRewards) ? player.claimedQuestRewards : [],
     streak: Number.isFinite(Number(player.streak)) ? Number(player.streak) : 0
   };
@@ -174,6 +253,344 @@ function loadPlayer() {
     console.warn("Lingua Life RPG could not load player data.", error);
     return null;
   }
+}
+
+function getLevelFromExp(exp) {
+  const safeExp = Number(exp || 0);
+  let level = 1;
+
+  levelThresholds.forEach((threshold, index) => {
+    if (safeExp >= threshold) {
+      level = index + 1;
+    }
+  });
+
+  return Math.min(level, levelThresholds.length);
+}
+
+function getCurrentLevelInfo(exp) {
+  const level = getLevelFromExp(exp);
+  const currentLevelExp = levelThresholds[level - 1];
+  const nextLevelExp = getNextLevelExp(level);
+  const isMaxLevel = level >= levelThresholds.length;
+  const progressPercent = isMaxLevel
+    ? 100
+    : Math.min(100, Math.max(0, ((Number(exp || 0) - currentLevelExp) / (nextLevelExp - currentLevelExp)) * 100));
+
+  return {
+    level,
+    currentLevelExp,
+    nextLevelExp,
+    isMaxLevel,
+    progressPercent
+  };
+}
+
+function getNextLevelExp(level) {
+  return level >= levelThresholds.length
+    ? levelThresholds[levelThresholds.length - 1]
+    : levelThresholds[level];
+}
+
+function checkLevelUp(oldLevel, newLevel) {
+  return Number(newLevel) > Number(oldLevel);
+}
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getYesterdayDateString() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, "0");
+  const day = String(yesterday.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function updateDailyStreak() {
+  if (!currentPlayer) {
+    return [];
+  }
+
+  const today = getTodayDateString();
+  const yesterday = getYesterdayDateString();
+  let streak = Number(currentPlayer.streak || 0);
+
+  if (!currentPlayer.lastPlayedDate) {
+    streak = 1;
+  } else if (currentPlayer.lastPlayedDate === today) {
+    return [];
+  } else if (currentPlayer.lastPlayedDate === yesterday) {
+    streak += 1;
+  } else {
+    streak = 1;
+  }
+
+  currentPlayer = savePlayer({
+    ...currentPlayer,
+    streak,
+    lastPlayedDate: today
+  }) || currentPlayer;
+
+  return checkAndUnlockBadges();
+}
+
+function renderStreakInfo() {
+  if (!currentPlayer) {
+    return;
+  }
+
+  const streak = Number(currentPlayer.streak || 0);
+  setText("mainStreak", `${streak} ${streak === 1 ? "day" : "days"}`);
+  setText("summaryStreak", `${streak} ${streak === 1 ? "day" : "days"}`);
+
+  if (streak >= 7) {
+    setText("streakMessage", "Amazing! You are building a strong habit.");
+  } else if (streak >= 2) {
+    setText("streakMessage", "Great streak! Keep learning every day.");
+  } else {
+    setText("streakMessage", "Your language journey starts today.");
+  }
+}
+
+function renderLevelProgressBar() {
+  if (!currentPlayer) {
+    return;
+  }
+
+  const levelInfo = getCurrentLevelInfo(currentPlayer.exp);
+  const progressFill = document.getElementById("levelProgressFill");
+
+  setText("mainLevel", levelInfo.level);
+  progressFill.style.width = `${levelInfo.progressPercent}%`;
+
+  if (levelInfo.isMaxLevel) {
+    setText("levelProgressText", "Max Level Reached");
+  } else {
+    setText("levelProgressText", `EXP: ${currentPlayer.exp} / ${levelInfo.nextLevelExp}`);
+  }
+}
+
+function addRewardHistory(quest, exp, coins) {
+  const rewardHistory = Array.isArray(currentPlayer.rewardHistory)
+    ? [...currentPlayer.rewardHistory]
+    : [];
+
+  rewardHistory.push({
+    id: `reward_${Date.now()}`,
+    type: "quest",
+    questId: quest.id,
+    title: quest.title,
+    exp,
+    coins,
+    createdAt: new Date().toISOString()
+  });
+
+  currentPlayer = savePlayer({ ...currentPlayer, rewardHistory }) || currentPlayer;
+}
+
+function getRewardHistory() {
+  return currentPlayer && Array.isArray(currentPlayer.rewardHistory)
+    ? currentPlayer.rewardHistory
+    : [];
+}
+
+function showRewardPopup(rewardData) {
+  const popup = document.getElementById("rewardPopup");
+  const rewards = document.getElementById("rewardPopupRewards");
+  const level = document.getElementById("rewardPopupLevel");
+  const badges = document.getElementById("rewardPopupBadges");
+
+  rewards.replaceChildren();
+  level.replaceChildren();
+  badges.replaceChildren();
+
+  setText("rewardPopupTitle", rewardData.isReplay ? "Quest replay completed." : "Quest Completed!");
+  setText("rewardPopupQuestTitle", rewardData.quest.title);
+  setText("rewardPopupVocabulary", rewardData.isReplay
+    ? "Rewards were already claimed."
+    : rewardData.vocabularyMessage);
+
+  if (rewardData.isReplay) {
+    const replayMessage = document.createElement("span");
+    replayMessage.textContent = "Rewards were already claimed.";
+    rewards.appendChild(replayMessage);
+  } else {
+    const exp = document.createElement("span");
+    const coins = document.createElement("span");
+    exp.textContent = `+${rewardData.exp} EXP`;
+    coins.textContent = `+${rewardData.coins} Coins`;
+    rewards.append(exp, coins);
+  }
+
+  if (rewardData.leveledUp) {
+    const title = document.createElement("h3");
+    const message = document.createElement("p");
+    title.textContent = "Level Up!";
+    message.textContent = `You reached Level ${rewardData.newLevel}.`;
+    level.append(title, message);
+  }
+
+  if (rewardData.newBadges && rewardData.newBadges.length) {
+    const title = document.createElement("h3");
+    const list = document.createElement("div");
+    title.textContent = "New Badge Unlocked:";
+    list.className = "reward-badge-list";
+    rewardData.newBadges.forEach((badge) => {
+      const item = document.createElement("span");
+      item.textContent = `${badge.icon} ${badge.title}`;
+      list.appendChild(item);
+    });
+    badges.append(title, list);
+  }
+
+  popup.classList.remove("hidden");
+}
+
+function closeRewardPopup() {
+  document.getElementById("rewardPopup").classList.add("hidden");
+  returnToMap();
+}
+
+function getCompletedQuestCount() {
+  return currentPlayer && Array.isArray(currentPlayer.completedQuests)
+    ? currentPlayer.completedQuests.length
+    : 0;
+}
+
+function getLearnedWordsCount() {
+  return currentPlayer && Array.isArray(currentPlayer.learnedWords)
+    ? currentPlayer.learnedWords.length
+    : 0;
+}
+
+function getTotalVocabularyReviewCount() {
+  return currentPlayer && Array.isArray(currentPlayer.learnedWords)
+    ? currentPlayer.learnedWords.reduce((total, item) => total + Number(item.reviewCount || 0), 0)
+    : 0;
+}
+
+function getUnlockedBadgeCount() {
+  return currentPlayer && Array.isArray(currentPlayer.badges)
+    ? currentPlayer.badges.length
+    : 0;
+}
+
+function hasBadge(badgeId) {
+  return Boolean(
+    currentPlayer &&
+    Array.isArray(currentPlayer.badges) &&
+    currentPlayer.badges.includes(badgeId)
+  );
+}
+
+function unlockBadge(badge) {
+  if (!badge || hasBadge(badge.id)) {
+    return false;
+  }
+
+  const badges = Array.isArray(currentPlayer.badges)
+    ? [...currentPlayer.badges]
+    : [];
+  badges.push(badge.id);
+  currentPlayer = savePlayer({ ...currentPlayer, badges }) || currentPlayer;
+  return true;
+}
+
+function checkAndUnlockBadges() {
+  if (!currentPlayer) {
+    return [];
+  }
+
+  const newlyUnlocked = [];
+
+  getBadgeDefinitions().forEach((badge) => {
+    if (hasBadge(badge.id) || !isBadgeConditionMet(badge)) {
+      return;
+    }
+
+    if (unlockBadge(badge)) {
+      newlyUnlocked.push(badge);
+    }
+  });
+
+  return newlyUnlocked;
+}
+
+function isBadgeConditionMet(badge) {
+  if (badge.conditionType === "completedQuestCount") {
+    return getCompletedQuestCount() >= badge.conditionValue;
+  }
+
+  if (badge.conditionType === "streak") {
+    return Number(currentPlayer.streak || 0) >= badge.conditionValue;
+  }
+
+  if (badge.conditionType === "learnedWordsCount") {
+    return getLearnedWordsCount() >= badge.conditionValue;
+  }
+
+  if (badge.conditionType === "reviewCount") {
+    return getTotalVocabularyReviewCount() >= badge.conditionValue;
+  }
+
+  if (badge.conditionType === "completedQuestSet") {
+    return badge.conditionValue.every((questId) => currentPlayer.completedQuests.includes(questId));
+  }
+
+  if (badge.conditionType === "level") {
+    return Number(currentPlayer.level || 1) >= badge.conditionValue;
+  }
+
+  return false;
+}
+
+function getUnlockedBadges() {
+  return getBadgeDefinitions().filter((badge) => hasBadge(badge.id));
+}
+
+function renderAchievementSummary() {
+  const badgeTotal = getBadgeDefinitions().length;
+  const unlockedBadgeCount = getUnlockedBadgeCount();
+
+  setText("summaryLevel", currentPlayer.level);
+  setText("summaryExp", currentPlayer.exp);
+  setText("summaryCoins", currentPlayer.coins);
+  setText("summaryCompletedQuests", getCompletedQuestCount());
+  setText("summaryLearnedWords", getLearnedWordsCount());
+  setText("summaryReviewedWords", getTotalVocabularyReviewCount());
+  setText("summaryBadges", `${unlockedBadgeCount} / ${badgeTotal}`);
+  setText("achievementBadgeCount", `Badges: ${unlockedBadgeCount} / ${badgeTotal}`);
+}
+
+function renderBadgesSection() {
+  const badgesGrid = document.getElementById("badgesGrid");
+  badgesGrid.replaceChildren();
+
+  getBadgeDefinitions().forEach((badge) => {
+    const card = document.createElement("article");
+    const icon = document.createElement("span");
+    const title = document.createElement("h4");
+    const description = document.createElement("p");
+    const status = document.createElement("strong");
+    const isUnlocked = hasBadge(badge.id);
+
+    card.className = `badge-card${isUnlocked ? " badge-unlocked" : " badge-locked"}`;
+    icon.className = "badge-icon";
+    icon.textContent = isUnlocked ? badge.icon : "🔒";
+    title.textContent = badge.title;
+    description.textContent = badge.description;
+    status.textContent = isUnlocked ? "Status: Unlocked" : "Status: Locked";
+
+    card.append(icon, title, description, status);
+    badgesGrid.appendChild(card);
+  });
 }
 
 function resetGame() {
@@ -219,6 +636,7 @@ function createPlayer(formData) {
     completedQuests: [],
     learnedWords: [],
     badges: [],
+    rewardHistory: [],
     claimedQuestRewards: [],
     streak: 0,
     lastPlayedDate: "",
@@ -281,7 +699,7 @@ function getQuestStatus(quest, player) {
 }
 
 function renderMainGameScreen() {
-  const player = currentPlayer || loadPlayer();
+  let player = currentPlayer || loadPlayer();
 
   if (!player) {
     renderStartScreen();
@@ -289,6 +707,8 @@ function renderMainGameScreen() {
   }
 
   currentPlayer = player;
+  updateDailyStreak();
+  player = currentPlayer;
   const avatar = avatarLabels[player.avatar] || avatarLabels.scholar;
 
   setText("welcomeMessage", `Welcome, ${player.name}!`);
@@ -299,12 +719,14 @@ function renderMainGameScreen() {
   setText("mainDifficulty", difficultyLabels[player.difficulty] || player.difficulty);
   setText("mainLearningGoal", learningGoalLabels[player.learningGoal] || player.learningGoal);
   setText("mainDailyGoal", `${player.dailyGoalMinutes} minutes/day`);
-  setText("mainLevel", player.level);
   setText("mainExp", player.exp);
   setText("mainCoins", player.coins);
   setText("mainMap", formatIdentifier(player.currentMap));
   setText("mainQuest", player.currentQuestId);
-  setText("mainStreak", `${player.streak} ${player.streak === 1 ? "day" : "days"}`);
+  renderLevelProgressBar();
+  renderStreakInfo();
+  renderAchievementSummary();
+  renderBadgesSection();
   renderDailyLifeTownMap();
   navigateTo("main");
 }
@@ -534,15 +956,34 @@ function completeQuest() {
   }
 
   const rewardAlreadyClaimed = hasRewardAlreadyClaimed(activeQuest.id);
+  const oldLevel = Number(currentPlayer.level || 1);
   const addedVocabularyCount = addVocabularyFromQuest(activeQuest);
   const completionResult = addCompletedQuest(activeQuest.id);
   currentPlayer = completionResult.player;
+  let rewardData = {
+    quest: activeQuest,
+    exp: 0,
+    coins: 0,
+    isReplay: rewardAlreadyClaimed,
+    oldLevel,
+    newLevel: oldLevel,
+    leveledUp: false,
+    newBadges: [],
+    vocabularyMessage: addedVocabularyCount > 0
+      ? "These words were added to your Vocabulary Book."
+      : "These words are already in your Vocabulary Book."
+  };
 
   if (!rewardAlreadyClaimed) {
-    currentPlayer = applyQuestReward(activeQuest);
+    rewardData = {
+      ...rewardData,
+      ...applyQuestReward(activeQuest, oldLevel)
+    };
   } else {
     currentPlayer = savePlayer(currentPlayer) || currentPlayer;
   }
+
+  rewardData.newBadges = checkAndUnlockBadges();
 
   const vocabulary = Array.isArray(activeQuest.vocabulary) ? activeQuest.vocabulary : [];
   const vocabularyList = document.getElementById("questVocabularyList");
@@ -571,6 +1012,7 @@ function completeQuest() {
   document.getElementById("questStepPanel").classList.add("hidden");
   document.getElementById("questCompletePanel").classList.remove("hidden");
   setText("questStepProgress", `Step ${activeQuest.steps.length} of ${activeQuest.steps.length}`);
+  showRewardPopup(rewardData);
 }
 
 function addCompletedQuest(questId) {
@@ -591,21 +1033,35 @@ function addCompletedQuest(questId) {
   return { player: savedPlayer, wasAlreadyCompleted };
 }
 
-function applyQuestReward(quest) {
+function applyQuestReward(quest, oldLevel = Number(currentPlayer.level || 1)) {
   const claimedQuestRewards = Array.isArray(currentPlayer.claimedQuestRewards)
     ? [...currentPlayer.claimedQuestRewards]
     : [];
+  const newExp = Number(currentPlayer.exp || 0) + Number(quest.rewardExp || 0);
+  const newCoins = Number(currentPlayer.coins || 0) + Number(quest.rewardCoins || 0);
+  const newLevel = Math.max(Number(currentPlayer.level || 1), getLevelFromExp(newExp));
 
   if (!claimedQuestRewards.includes(quest.id)) {
     claimedQuestRewards.push(quest.id);
   }
 
-  return savePlayer({
+  currentPlayer = savePlayer({
     ...currentPlayer,
-    exp: Number(currentPlayer.exp || 0) + Number(quest.rewardExp || 0),
-    coins: Number(currentPlayer.coins || 0) + Number(quest.rewardCoins || 0),
+    exp: newExp,
+    coins: newCoins,
+    level: newLevel,
     claimedQuestRewards
   }) || currentPlayer;
+
+  addRewardHistory(quest, Number(quest.rewardExp || 0), Number(quest.rewardCoins || 0));
+
+  return {
+    exp: Number(quest.rewardExp || 0),
+    coins: Number(quest.rewardCoins || 0),
+    oldLevel,
+    newLevel,
+    leveledUp: checkLevelUp(oldLevel, newLevel)
+  };
 }
 
 function hasRewardAlreadyClaimed(questId) {
@@ -792,6 +1248,7 @@ function markWordReviewed(wordId) {
     reviewCount: Number(wordItem.reviewCount || 0) + 1,
     lastReviewedAt: new Date().toISOString()
   }));
+  checkAndUnlockBadges();
   renderVocabularyBookScreen();
 }
 
@@ -927,6 +1384,7 @@ function rememberFlashcard() {
     reviewCount: Number(item.reviewCount || 0) + 1,
     lastReviewedAt: new Date().toISOString()
   }));
+  checkAndUnlockBadges();
   flashcardReviewedCount += 1;
   nextFlashcard();
 }
@@ -1107,6 +1565,7 @@ document.getElementById("mainBackButton").addEventListener("click", renderStartS
 document.getElementById("mainResetButton").addEventListener("click", resetGame);
 document.getElementById("returnToMapButton").addEventListener("click", returnToMap);
 document.getElementById("returnToMapCompleteButton").addEventListener("click", returnToMap);
+document.getElementById("closeRewardPopupButton").addEventListener("click", closeRewardPopup);
 document.getElementById("returnToMapFromVocabularyButton").addEventListener("click", returnToMap);
 document.getElementById("returnToMapFromReviewButton").addEventListener("click", returnToMap);
 document.getElementById("startFlashcardButton").addEventListener("click", startFlashcardReview);

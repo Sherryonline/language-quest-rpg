@@ -59,6 +59,17 @@ Lingua Life RPG is a browser-based language learning RPG built with plain HTML, 
 - Flashcard review supports I Remember and Need Review outcomes
 - Backward-compatible migration for older save data
 
+### Sprint 6 - Motivation systems
+
+- Level calculation from total EXP
+- Level progress bar on the Main Game Screen
+- Reward popup after quest completion
+- Reward history saved for first-time quest rewards
+- Daily streak tracking with browser local dates
+- Badge unlocking and badge display
+- Achievement summary with level, EXP, coins, streak, quests, vocabulary, reviews, and badges
+- Replay-safe reward, badge, and reward history behavior
+
 ## Playable quests
 
 English:
@@ -106,6 +117,32 @@ Replaying a quest does not duplicate vocabulary. Existing review counts, favorit
 
 Flashcard Review uses the current Vocabulary Book filter. The front shows the word, and Chinese cards also show pinyin when available. The back shows meaning, example sentence, and source quest. Choosing I Remember increases review count and updates the last reviewed date. Choosing Need Review moves on without adding review credit.
 
+## Level system
+
+Player level is calculated from total EXP. Level thresholds are 0, 100, 250, 500, 850, 1300, 1900, 2600, 3500, and 4600 EXP. Quest rewards can trigger level-ups, and replayed quests do not grant duplicate EXP or coins.
+
+## Daily streak
+
+The streak uses the browser's local date. Opening the Main Game Screen for the first time starts a 1-day streak. Opening again on the same day keeps the streak unchanged. Opening on the next day increases it by 1. Missing more than one day resets the streak to 1.
+
+## Badges
+
+- First Step
+- Daily Learner
+- 5-Day Hero
+- Vocabulary Collector
+- Flashcard Starter
+- English Beginner
+- Chinese Beginner
+- Level 2 Adventurer
+- Level 5 Scholar
+
+Badges unlock from quest completion, streak progress, vocabulary collection, flashcard review, and level progress. They are saved in localStorage and do not duplicate.
+
+## Reward popup and history
+
+First-time quest completion shows a reward popup with EXP, coins, level-up information, newly unlocked badges, and vocabulary status. A reward history item is saved only when rewards are actually granted. Replaying a completed quest shows that rewards were already claimed and does not create duplicate reward history.
+
 ## Run locally
 
 1. Open the `language-quest-rpg` folder in VS Code.
@@ -131,6 +168,11 @@ This URL assumes GitHub Pages is configured to deploy the repository root from t
 - Vocabulary review does not give EXP or coins yet.
 - There is no spaced repetition algorithm yet.
 - There is no pronunciation audio yet.
+- Daily streak uses browser local date.
+- There is no server sync yet.
+- There is no login or cloud save yet.
+- There is no leaderboard yet.
+- There are no sound or animation reward effects yet.
 - Developer test tools are temporary and remain inside a collapsible section.
 - Data is saved only in the current browser's localStorage.
 - There is no voice recognition yet.

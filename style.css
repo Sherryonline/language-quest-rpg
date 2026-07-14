@@ -381,6 +381,56 @@ h2 {
   gap: 14px;
 }
 
+.level-progress-section,
+.achievement-summary,
+.badges-section {
+  margin: 28px 0;
+  padding: clamp(18px, 4vw, 28px);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: 18px;
+  background: #FFF7E0;
+}
+
+.level-progress-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.level-progress-copy h3,
+.achievement-summary h3,
+.badges-section h3 {
+  margin: 0;
+  color: var(--primary-dark);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+}
+
+.level-progress-copy p,
+.streak-message {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.level-progress-track {
+  height: 18px;
+  margin: 16px 0 10px;
+  overflow: hidden;
+  border: 1px solid rgba(146, 64, 14, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.level-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--secondary-button), var(--accent-color));
+  transition: width 220ms ease;
+}
+
 .info-card {
   min-width: 0;
   padding: 17px;
@@ -394,6 +444,60 @@ h2 {
   margin-top: 7px;
   overflow-wrap: anywhere;
   font-size: 1.05rem;
+}
+
+.achievement-grid,
+.badges-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.badge-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--quest-card);
+  box-shadow: 0 10px 24px rgba(92, 64, 38, 0.07);
+}
+
+.badge-card h4 {
+  margin: 8px 0 6px;
+  color: var(--main-text);
+  font-size: 1rem;
+}
+
+.badge-card p {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.badge-icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: #FEF3C7;
+  font-size: 1.5rem;
+}
+
+.badge-unlocked {
+  border-color: rgba(251, 113, 133, 0.32);
+  background: #FFF1F2;
+}
+
+.badge-locked {
+  opacity: 0.66;
+  background: var(--locked-quest);
+}
+
+.badge-locked .badge-icon {
+  background: #D1D5DB;
 }
 
 .town-map {
@@ -765,6 +869,51 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.reward-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  padding: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(59, 47, 47, 0.38);
+}
+
+.reward-popup-card {
+  width: min(560px, 100%);
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: 0 28px 90px rgba(59, 47, 47, 0.28);
+}
+
+.reward-popup-card h2 {
+  margin-bottom: 10px;
+}
+
+.reward-popup-section {
+  margin-top: 18px;
+}
+
+.reward-popup-section h3 {
+  margin: 0 0 8px;
+  color: var(--primary-dark);
+}
+
+.reward-badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reward-badge-list span {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #FEF3C7;
+  font-weight: 850;
+}
+
 .vocabulary-screen {
   max-width: 980px;
 }
@@ -912,7 +1061,9 @@ h2 {
   .form-grid,
   .profile-grid,
   .quest-grid,
-  .vocabulary-list {
+  .vocabulary-list,
+  .achievement-grid,
+  .badges-grid {
     grid-template-columns: 1fr;
   }
 
@@ -935,7 +1086,8 @@ h2 {
   .quest-play-header,
   .quest-progress-row,
   .vocabulary-header,
-  .flashcard-header {
+  .flashcard-header,
+  .level-progress-copy {
     align-items: stretch;
     flex-direction: column;
   }
